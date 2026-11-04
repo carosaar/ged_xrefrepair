@@ -98,6 +98,7 @@ class MainWindow(QMainWindow):
             (
                 f"Personen: {result.individuals}\n"
                 f"Familien: {result.families}\n"
-                f"Datensätze: {result.records}"
+                f"Datensätze: {result.records}\n"
+                f"Probleme: {result.issues}"
             )
         )

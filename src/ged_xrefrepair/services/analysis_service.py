@@ -1,7 +1,8 @@
 # src/ged_xrefrepair/services/analysis_service.py
 
 from ged_xrefrepair.parser.gedcom_parser import GedcomParser
-from ged_xrefrepair.analyzer.validation_result import ValidationResult
+from ged_xrefrepair.analyzer.reference_analyzer import ReferenceAnalyzer
+from ged_xrefrepair.analyzer.analysis_result import AnalysisResult
 
 
 class AnalysisService:
@@ -9,7 +10,7 @@ class AnalysisService:
     def analyze(
         self,
         filename: str
-    ) -> ValidationResult:
+    ) -> AnalysisResult:
 
         parser = GedcomParser()
 
@@ -26,8 +27,17 @@ class AnalysisService:
             elif record.tag == "FAM":
                 families += 1
 
-        return ValidationResult(
+        analyzer = ReferenceAnalyzer()
+
+        issues = analyzer.analyze(records)
+
+#       Zeige das Ergebnis der Analyse
+#       for issue in issues:
+#           print(issue)
+
+        return AnalysisResult(
             individuals=individuals,
             families=families,
-            records=len(records)
+            records=len(records),
+            issues=len(issues)
         )

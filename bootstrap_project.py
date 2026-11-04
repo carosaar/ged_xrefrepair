@@ -111,7 +111,7 @@ EMPTY_FILES = [
 
     "src/ged_xrefrepair/analyzer/__init__.py",
     "src/ged_xrefrepair/analyzer/family_consistency.py",
-    "src/ged_xrefrepair/analyzer/validation_result.py",
+    "src/ged_xrefrepair/analyzer/analysis_result.py",
 
     "src/ged_xrefrepair/repair/__init__.py",
     "src/ged_xrefrepair/repair/chil_repairs.py",
