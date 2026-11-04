@@ -92,6 +92,14 @@ class MainWindow(QMainWindow):
             self.gedcom_file
         )
 
+        issue_text = ""
+
+        for issue in result.issues:
+            issue_text += (
+                f"\n{issue.issue_type}: "
+                f"{issue.description}"
+            )
+
         QMessageBox.information(
             self,
             "Analyse",
@@ -99,6 +107,7 @@ class MainWindow(QMainWindow):
                 f"Personen: {result.individuals}\n"
                 f"Familien: {result.families}\n"
                 f"Datensätze: {result.records}\n"
-                f"Probleme: {result.issues}"
+                f"Probleme: {result.issues_count}\n"
+                f"{issue_text}"
             )
         )

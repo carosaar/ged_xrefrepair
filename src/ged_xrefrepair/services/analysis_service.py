@@ -39,5 +39,6 @@ class AnalysisService:
             individuals=individuals,
             families=families,
             records=len(records),
-            issues=len(issues)
+            issues_count=len(issues),
+            issues=issues
         )

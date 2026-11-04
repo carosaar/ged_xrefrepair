@@ -3,7 +3,26 @@
 Alle wichtigen Änderungen an diesem Projekt werden in dieser Datei dokumentiert.
 
 ---
+## [0.3.0] - Anzeige gefundener Referenzprobleme
 
+### Hinzugefügt
+
+- Analyseergebnisse enthalten nun die vollständige Liste erkannter Probleme.
+- Gefundene Referenzfehler werden dem Benutzer angezeigt.
+- Einführung einer strukturierten Übergabe von Issue-Objekten zwischen Analyse- und GUI-Schicht.
+
+### Benutzeroberfläche
+
+- Die Analyse zeigt nicht mehr nur die Anzahl der Probleme.
+- Zu jedem Problem wird nun eine Beschreibung angezeigt.
+- Der Benutzer kann nachvollziehen, warum ein Datensatz als inkonsistent erkannt wurde.
+
+### Motivation
+
+Bevor automatische Reparaturen angeboten werden können, muss die Analyse für den Benutzer nachvollziehbar und überprüfbar sein. 
+Dieser Meilenstein schafft die Grundlage für die spätere Einführung einer Reparaturvorschau und selektiver Korrekturen.
+
+---
 ## [0.2.0] - Erkennung fehlender FAMC/CHIL-Referenzen
 04.11.2026 05:00
 
