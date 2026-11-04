@@ -3,6 +3,62 @@
 Alle wichtigen Änderungen an diesem Projekt werden in dieser Datei dokumentiert.
 
 ---
+
+## [0.4.0] - Problemtabelle und Auswahlmechanismus
+
+### Hinzugefügt
+
+- Gefundene Probleme werden nun in einer Tabelle dargestellt.
+- Einführung einer strukturierten Problemliste im Hauptfenster.
+- Unterstützung für mehrere tausend Analyseergebnisse in einer übersichtlichen Ansicht.
+
+### Problemtabelle
+
+Die Tabelle enthält jetzt folgende Informationen:
+
+- Problemtyp
+- betroffener Datensatz
+- Reparierbarkeit
+- Problembeschreibung
+
+Jedes erkannte Problem wird als eigene Zeile dargestellt.
+
+### Auswahlmechanismus
+
+- Einführung einer Checkbox-Spalte zur Auswahl einzelner Probleme.
+- Standardmäßig werden automatisch reparierbare Probleme vorausgewählt.
+- Nicht reparierbare Probleme bleiben standardmäßig deaktiviert.
+
+### Sammelaktionen
+
+Neue Funktionen:
+
+- Alle Probleme auswählen
+- Alle Probleme abwählen
+
+Diese Funktionen erleichtern die Arbeit mit großen GEDCOM-Dateien erheblich.
+
+### Statusanzeige
+
+- Anzeige der aktuell ausgewählten Probleme.
+- Automatische Aktualisierung beim Setzen oder Entfernen von Häkchen.
+- Sofortige Rückmeldung über die Anzahl der zur Reparatur vorgesehenen Einträge.
+
+### Benutzeroberfläche
+
+- Problemliste als zentraler Arbeitsbereich etabliert.
+- Analyse- und Dateibereiche optisch überarbeitet.
+- Aufteilung des Arbeitsbereichs in Problemliste und zukünftige Detailansicht vorbereitet.
+
+### Motivation
+
+Mit diesem Meilenstein wird die Anwendung erstmals zu einem interaktiven Reparatur-Assistenten.
+
+Der Benutzer kann nun gezielt entscheiden, welche Probleme später korrigiert werden sollen. Die Grundlage für Vorschau, Detailansicht und eigentliche Reparaturfunktionen ist damit geschaffen.
+
+
+
+---
 ## [0.3.0] - Anzeige gefundener Referenzprobleme
 
 ### Hinzugefügt
