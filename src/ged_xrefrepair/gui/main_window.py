@@ -1,6 +1,7 @@
 # src/ged_xrefrepair/gui/main_window.py
 
 from pathlib import Path
+from html import escape
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
@@ -18,6 +19,7 @@ from PySide6.QtWidgets import (
     QTableWidget,
     QTableWidgetItem,
     QHeaderView,
+    QTextEdit,
 )
 
 from ged_xrefrepair.services.analysis_service import AnalysisService
@@ -30,14 +32,17 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         self.gedcom_file = None
-
+        self.current_issues = []
+        
         self.setWindowTitle("GED XRef Repair")
         self.resize(1400, 900)
 
         self._create_ui()
+     
 
     def _create_ui(self) -> None:
 
+        # Fensterstil
         self.setStyleSheet("""
             QGroupBox {
                 border: 1px solid #808080;
@@ -55,8 +60,10 @@ class MainWindow(QMainWindow):
         """)
 
         central = QWidget()
+        # Setze das zentrale Widget des Hauptfensters
         self.setCentralWidget(central)
 
+        # Hauptlayout
         main_layout = QVBoxLayout(central)
         main_layout.setSpacing(6)
 
@@ -356,25 +363,12 @@ class MainWindow(QMainWindow):
 
         detail_layout = QVBoxLayout()
 
-        self.detail_placeholder = QLabel(
-            "Hier erscheinen später Detailinformationen"
-        )
-
-        self.detail_placeholder.setAlignment(
-            Qt.AlignCenter
-        )
-
-        self.detail_placeholder.setStyleSheet(
-            """
-            font-size: 12pt;
-            color: gray;
-            """
-        )
+        self.detail_view = QTextEdit()
+        self.detail_view.setReadOnly(True)
 
         detail_layout.addWidget(
-            self.detail_placeholder
+            self.detail_view
         )
-
         detail_group.setLayout(
             detail_layout
         )
@@ -419,6 +413,7 @@ class MainWindow(QMainWindow):
             self.show_info
         )
 
+        # Wenn der "Ende"-Button geklickt wird, soll das Programm beendet werden
         self.exit_button.clicked.connect(
             self.close
         )
@@ -427,16 +422,24 @@ class MainWindow(QMainWindow):
             "Bereit"
         )
         
+        # Wenn der "Alle auswählen"-Button geklickt wird, sollen alle Probleme ausgewählt werden
         self.select_all_button.clicked.connect(
             self.select_all_issues
         )
 
+        # Wenn der "Keine auswählen"-Button geklickt wird, sollen alle Probleme abgewählt werden
         self.clear_all_button.clicked.connect(
             self.clear_all_issues
         )
         
+        # Wenn ein Item in der Tabelle geändert wird, soll die Anzahl der ausgewählten Probleme aktualisiert werden
         self.issue_table.itemChanged.connect(
             self.on_issue_item_changed
+        )
+        
+        # Wenn die Auswahl in der Tabelle geändert wird, sollen die Details angezeigt werden
+        self.issue_table.itemSelectionChanged.connect(
+            self.show_issue_details
         )
         
 
@@ -481,6 +484,9 @@ class MainWindow(QMainWindow):
         result = service.analyze(
             self.gedcom_file
         )
+        
+        # Aktuelle Probleme speichern
+        self.current_issues = result.issues
         
         # NameResolver initialisieren, um die XRef-IDs in lesbare Namen aufzulösen
         self.name_resolver = NameResolver(
@@ -660,3 +666,67 @@ class MainWindow(QMainWindow):
                 "von GEDCOM-Referenzen."
             )
         )
+        
+        # Wenn ein Problem in der Tabelle ausgewählt wird, sollen die Details angezeigt werden
+    def show_issue_details(self) -> None:
+
+        from html import escape
+
+        row = self.issue_table.currentRow()
+
+        if row < 0:
+            return
+
+        issue = self.current_issues[row]
+
+        record_name = self.name_resolver.resolve(
+            issue.record_id
+        )
+
+        related_name = self.name_resolver.resolve(
+            issue.related_xref
+        )
+
+        html = f"""
+        <html>
+        <body style="font-family:'Segoe UI';">
+
+        <br><br>
+        <div align="center">
+            <h1>{escape(issue.issue_type)}</h1>
+        </div>
+
+        <h2>Problemdatensatz</h2>
+
+        <p style="margin-bottom:4px;">
+            {escape(issue.record_id)}
+        </p>
+
+        <p style="margin-top:0px; margin-left:20px;">
+            <b>{escape(record_name)}</b>
+        </p>
+
+        <h2>Korrespondierender Datensatz</h2>
+
+        <p style="margin-bottom:4px;">
+            {escape(issue.related_xref)}
+        </p>
+
+        <p style="margin-top:0px; margin-left:20px;">
+            <b>{escape(related_name)}</b>
+        </p>
+
+        <h2>Beschreibung</h2>
+
+        <p>
+            {escape(issue.description)}
+        </p>
+
+        </body>
+        </html>
+        """
+
+        self.detail_view.setHtml(html)    
+
+        
+   

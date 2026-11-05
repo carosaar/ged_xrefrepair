@@ -53,19 +53,12 @@ class NameResolver:
                 elif line.startswith("1 WIFE "):
                     wife = line[7:].strip()
 
-            husb_name = self.person_names.get(
-                husb,
-                husb if husb else "?"
-            )
-
-            wife_name = self.person_names.get(
-                wife,
-                wife if wife else "?"
-            )
+            husb_name = self._resolve_person_ref(husb)
+            wife_name = self._resolve_person_ref(wife)
 
             self.family_names[
                 record.xref
-            ] = f"{husb_name} + {wife_name}"
+            ] = f"{husb_name} & {wife_name}"
 
     def resolve(self, xref: str) -> str:
 
@@ -82,3 +75,13 @@ class NameResolver:
             )
 
         return xref
+    
+    def _resolve_person_ref(self, xref: str | None) -> str:
+
+        if not xref:
+            return "[kein Verweis]"
+
+        if xref not in self.person_names:
+            return f"{xref} [Person nicht vorhanden]"
+
+        return self.person_names[xref]
