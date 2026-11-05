@@ -4,6 +4,82 @@ Alle wichtigen Änderungen an diesem Projekt werden in dieser Datei dokumentiert
 
 ---
 
+## [0.6.0] - Reparaturvorschau
+
+### Hinzugefügt
+
+- Einführung einer Reparaturvorschau für erkannte Referenzprobleme.
+- Neues Datenmodell `RepairAction` zur Beschreibung geplanter Änderungen.
+- Neues Modul `RepairPreviewService` zur Ableitung von Reparaturvorschlägen aus Analyseergebnissen.
+
+### Reparaturvorschau
+
+Für unterstützte Problemtypen kann das Programm nun konkrete Reparaturmaßnahmen erzeugen.
+
+Die Vorschau enthält:
+
+- Art der Reparatur
+- Zieldatensatz
+- Beschreibung der geplanten Änderung
+- einzufügende GEDCOM-Zeile
+
+Beispiel:
+
+```text
+Aktion:
+Kindreferenz ergänzen
+
+Zieldatensatz:
+@F1@
+
+Einzufügen:
+
+1 CHIL @I1@
+
+Unterstützte Problemtypen
+
+Aktuell unterstützt:
+
+MISSING_CHIL
+
+Die Anwendung schlägt vor, den fehlenden CHIL-Eintrag in den betroffenen Familiendatensatz einzufügen.
+
+Detailansicht
+
+Die Detailansicht wurde um den neuen Bereich
+
+Vorgeschlagene Reparatur
+
+
+erweitert.
+
+Dadurch kann der Benutzer erstmals nachvollziehen, welche Änderung das Programm später durchführen würde.
+
+Architektur
+
+Neue Komponenten:
+
+RepairAction
+RepairPreviewService
+
+Die Reparaturvorschau ist vollständig von Analyse und Benutzeroberfläche entkoppelt.
+
+Damit wurde die Grundlage für die spätere Implementierung automatischer Reparaturen geschaffen.
+
+Noch nicht enthalten
+
+Aktuell werden keine Änderungen an GEDCOM-Dateien vorgenommen.
+
+Die Anwendung erzeugt ausschließlich Vorschläge und verändert keine Daten.
+
+Motivation
+
+Mit diesem Meilenstein entwickelt sich GED XRef Repair von einem reinen Analysewerkzeug zu einem Reparaturassistenten.
+
+Erstmals werden nicht nur Probleme erkannt, sondern auch konkrete Lösungswege vorgeschlagen. Dies schafft Transparenz und bildet die Grundlage für zukünftige automatische Reparaturfunktionen.
+
+---
+
 ## [0.5.1] - Bedienkomfort und Workflow-Verbesserungen
 
 ### Verbesserungen
