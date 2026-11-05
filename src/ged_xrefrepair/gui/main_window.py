@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
 )
 
 from ged_xrefrepair.services.analysis_service import AnalysisService
+from ged_xrefrepair.services.name_resolver import NameResolver
 
 
 class MainWindow(QMainWindow):
@@ -259,12 +260,19 @@ class MainWindow(QMainWindow):
 
         self.issue_table.setHorizontalHeaderLabels(
             [
-                "","Typ",
+                "",
                 "Datensatz",
+                "Problemfall",
+                "Typ",
                 "Reparierbar",
-                "Beschreibung",
             ]
         )
+        
+        self.issue_table.setColumnWidth(0, 40)   # Checkbox
+        self.issue_table.setColumnWidth(1, 100)  # Datensatz
+        self.issue_table.setColumnWidth(2, 300)  # Problemfall
+        self.issue_table.setColumnWidth(3, 120)  # Typ
+        self.issue_table.setColumnWidth(4, 100)  # Reparierbar
 
         self.issue_table.setAlternatingRowColors(True)
 
@@ -290,12 +298,12 @@ class MainWindow(QMainWindow):
 
         header.setSectionResizeMode(
             2,
-            QHeaderView.ResizeMode.ResizeToContents
+            QHeaderView.ResizeMode.Interactive
         )
 
         header.setSectionResizeMode(
             3,
-            QHeaderView.ResizeMode.Stretch
+            QHeaderView.ResizeMode.ResizeToContents
         )
 
         selection_layout = QHBoxLayout()
@@ -383,9 +391,8 @@ class MainWindow(QMainWindow):
         # 70 / 30 Verteilung
         #
 
-        splitter.setSizes(
-            [700, 300]
-        )
+        splitter.setStretchFactor(0, 1)
+        splitter.setStretchFactor(1, 1)
 
         #
         # Hauptfläche erhält fast die gesamte Höhe
@@ -470,30 +477,42 @@ class MainWindow(QMainWindow):
 
         service = AnalysisService()
 
+        # Ergebnis der Analyse abrufen
         result = service.analyze(
             self.gedcom_file
         )
+        
+        # NameResolver initialisieren, um die XRef-IDs in lesbare Namen aufzulösen
+        self.name_resolver = NameResolver(
+            result.record_list
+        )
 
+        # Ergebnisse in der GUI anzeigen
         self.persons_value.setText(
             str(result.individuals)
         )
 
+        # Familienanzahl anzeigen
         self.families_value.setText(
             str(result.families)
         )
 
+        # Datensatzanzahl anzeigen
         self.records_value.setText(
             str(result.records)
         )
 
+        # Probleme anzeigen
         self.issues_value.setText(
             str(result.issues_count)
         )
 
+        # Probleme in der Tabelle anzeigen
         self.populate_issue_table(
             result.issues
         )
 
+        # Buttons aktivieren
         self.statusBar().showMessage(
             "Analyse abgeschlossen"
         )        
@@ -507,6 +526,7 @@ class MainWindow(QMainWindow):
 
         for row, issue in enumerate(issues):
 
+            # 0 Checkbox
             checkbox_item = QTableWidgetItem()
 
             checkbox_item.setFlags(
@@ -525,43 +545,39 @@ class MainWindow(QMainWindow):
                 0,
                 checkbox_item
             )
-
+          
+            # 1 Datensatz
             self.issue_table.setItem(
                 row,
                 1,
-                QTableWidgetItem(
-                    issue.issue_type
-                )
+                QTableWidgetItem(issue.record_id)
             )
 
+            # 2 Problemfall
             self.issue_table.setItem(
                 row,
                 2,
-                QTableWidgetItem(
-                    issue.record_id
-                )
+                QTableWidgetItem(issue.description)
             )
 
+            # 3 Typ
             self.issue_table.setItem(
                 row,
                 3,
-                QTableWidgetItem(
-                    "Ja"
-                    if issue.auto_repair_possible
-                    else "Nein"
-                )
+                QTableWidgetItem(issue.issue_type)
             )
 
+            # 4 Reparierbar
             self.issue_table.setItem(
                 row,
                 4,
                 QTableWidgetItem(
-                    issue.description
+                    "Ja" if issue.auto_repair_possible else "Nein"
                 )
             )
             
         self.update_selected_count()
-            
+        
 
     def select_all_issues(self) -> None:
 

@@ -40,5 +40,6 @@ class AnalysisService:
             families=families,
             records=len(records),
             issues_count=len(issues),
-            issues=issues
+            issues=issues,
+            record_list=records
         )

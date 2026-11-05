@@ -61,15 +61,21 @@ class ReferenceAnalyzer:
                     issues.append(
                         Issue(
                             issue_type="MISSING_CHIL",
+
+                            # Familie enthält den Fehler
                             record_id=family_xref,
+
+                            # korrespondierende Person
+                            related_xref=record.xref,
+
                             description=(
                                 f"{record.xref} verweist "
                                 f"auf {family_xref}, "
                                 "aber CHIL fehlt."
                             ),
+
                             auto_repair_possible=True
                         )
                     )
-
         return issues
 
