@@ -2,6 +2,85 @@
 
 Alle wichtigen Änderungen an diesem Projekt werden in dieser Datei dokumentiert.
 
+## [0.5.0] - Detailansicht und genealogische Namensauflösung
+
+### Hinzugefügt
+
+- Interaktive Detailansicht für ausgewählte Analyseergebnisse.
+- Einführung des neuen Feldes `related_xref` zur Zuordnung korrespondierender Datensätze.
+- Neues Modul `NameResolver` zur Auflösung genealogischer Referenzen.
+- Analyseergebnisse enthalten nun zusätzliche Kontextinformationen für die spätere Reparaturvorschau.
+
+### Detailansicht
+
+Für jeden erkannten Problemfall werden nun zusätzliche Informationen angezeigt:
+
+- Problemtyp
+- Problemdatensatz
+- korrespondierender Datensatz
+- ausführliche Problembeschreibung
+
+Die Detailansicht aktualisiert sich automatisch beim Auswählen eines Eintrags in der Problemtabelle.
+
+### Genealogische Namensauflösung
+
+Technische GEDCOM-Referenzen werden nun in sprechende genealogische Informationen aufgelöst.
+
+Personendatensätze (`INDI`) werden dargestellt als:
+
+- Name
+- Geburtsdatum (falls vorhanden)
+- Sterbedatum (falls vorhanden)
+
+Beispiel:
+
+    Peter Müller (*12 MAR 1887 ✝15 SEP 1951)
+
+Familiendatensätze (`FAM`) werden dargestellt als:
+
+- Ehemann
+- Ehefrau
+- Heiratsdatum (falls vorhanden)
+
+Beispiel:
+
+    Peter Müller (*1887 ✝1951)
+    ⚭ 10 MAY 1910
+    Maria Schmidt (*1890 ✝1965)
+
+### Fehlerdarstellung
+
+Nicht auflösbare Referenzen werden nun ausdrücklich gekennzeichnet.
+
+Beispiele:
+
+    @I10@ [Person nicht vorhanden]
+
+    [kein HUSB]
+
+    [kein WIFE]
+
+Dadurch können fehlerhafte Familienverknüpfungen bereits während der Analyse leichter erkannt werden.
+
+### Benutzeroberfläche
+
+- Einführung einer formatierten HTML-Darstellung im Detailbereich.
+- Zentrierte Hervorhebung des Problemtyps.
+- Verbesserte Lesbarkeit durch getrennte Darstellung von Referenz und Namensauflösung.
+- Vorbereitung der Oberfläche für spätere Reparaturvorschau.
+
+### Architektur
+
+- Analyseergebnisse stellen die zugrunde liegenden Datensätze für nachfolgende Verarbeitungsschritte bereit.
+- Namensauflösung vollständig von Analyse- und GUI-Logik entkoppelt.
+- Grundlage für die spätere Umsetzung von Reparaturaktionen geschaffen.
+
+### Motivation
+
+Mit diesem Meilenstein werden technische GEDCOM-Referenzen erstmals in genealogisch verständliche Informationen übersetzt.
+
+Der Benutzer kann erkannte Probleme nun deutlich leichter nachvollziehen und überprüfen. Gleichzeitig entsteht die Grundlage für eine spätere Reparaturvorschau mit konkreten Änderungsvorschlägen.
+
 ---
 
 ## [0.4.0] - Problemtabelle und Auswahlmechanismus

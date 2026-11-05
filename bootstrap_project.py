@@ -2,7 +2,7 @@ from pathlib import Path
 
 PROJECT_FILES = {
     "src/ged_xrefrepair/__init__.py":
-        '__version__ = "0.1.0"\n',
+        '__version__ = "0.5.0"\n',
 
     "src/ged_xrefrepair/__main__.py":
         """from ged_xrefrepair.main import main

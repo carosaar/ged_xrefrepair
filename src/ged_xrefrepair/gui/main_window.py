@@ -34,7 +34,7 @@ class MainWindow(QMainWindow):
         self.gedcom_file = None
         self.current_issues = []
         
-        self.setWindowTitle("GED XRef Repair")
+        self.setWindowTitle("GED XRef Repair v.0.5.0")
         self.resize(1400, 900)
 
         self._create_ui()

@@ -95,6 +95,13 @@ class NameResolver:
             husb = None
             wife = None
 
+            first_marriage_date = ""
+            civil_marriage_date = ""
+
+            in_marriage = False
+            current_marriage_date = ""
+            current_marriage_type = ""
+
             for line in record.lines:
 
                 if line.startswith("1 HUSB "):
@@ -103,12 +110,103 @@ class NameResolver:
                 elif line.startswith("1 WIFE "):
                     wife = line[7:].strip()
 
-            husb_name = self._resolve_person_ref(husb)
-            wife_name = self._resolve_person_ref(wife)
+                elif line.startswith("1 MARR"):
+
+                    # vorherigen MARR-Block übernehmen
+                    if current_marriage_date:
+
+                        if (
+                            current_marriage_type.upper()
+                            == "CIVIL"
+                        ):
+                            civil_marriage_date = (
+                                current_marriage_date
+                            )
+
+                        elif not first_marriage_date:
+                            first_marriage_date = (
+                                current_marriage_date
+                            )
+
+                    in_marriage = True
+                    current_marriage_date = ""
+                    current_marriage_type = ""
+
+                elif (
+                    in_marriage
+                    and line.startswith("2 DATE ")
+                ):
+                    current_marriage_date = (
+                        line[7:].strip()
+                    )
+
+                elif (
+                    in_marriage
+                    and line.startswith("2 TYPE ")
+                ):
+                    current_marriage_type = (
+                        line[7:].strip()
+                    )
+
+            # letzten MARR-Block übernehmen
+            if current_marriage_date:
+
+                if (
+                    current_marriage_type.upper()
+                    == "CIVIL"
+                ):
+                    civil_marriage_date = (
+                        current_marriage_date
+                    )
+
+                elif not first_marriage_date:
+                    first_marriage_date = (
+                        current_marriage_date
+                    )
+
+            marriage_date = (
+                civil_marriage_date
+                or first_marriage_date
+            )
+
+            husb_name = self.person_names.get(
+                husb,
+                (
+                    f"{husb} [Person nicht vorhanden]"
+                    if husb
+                    else "[kein HUSB]"
+                )
+            )
+
+            wife_name = self.person_names.get(
+                wife,
+                (
+                    f"{wife} [Person nicht vorhanden]"
+                    if wife
+                    else "[kein WIFE]"
+                )
+            )
+
+            if marriage_date:
+
+                family_text = (
+                    f"{husb_name}\n"
+                    f"⚭ {marriage_date}\n"
+                    f"{wife_name}"
+                )
+
+            else:
+
+                family_text = (
+                    f"{husb_name}\n"
+                    f"&\n"
+                    f"{wife_name}"
+                )
 
             self.family_names[
                 record.xref
-            ] = f"{husb_name} \n& \n{wife_name}"
+            ] = family_text
+
 
     def resolve(self, xref: str) -> str:
 
