@@ -686,6 +686,16 @@ class MainWindow(QMainWindow):
         related_name = self.name_resolver.resolve(
             issue.related_xref
         )
+        
+        record_name_html = (
+            escape(record_name)
+            .replace("\n", "<br>")
+        )
+
+        related_name_html = (
+            escape(related_name)
+            .replace("\n", "<br>")
+        )
 
         html = f"""
         <html>
@@ -703,7 +713,7 @@ class MainWindow(QMainWindow):
         </p>
 
         <p style="margin-top:0px; margin-left:20px;">
-            <b>{escape(record_name)}</b>
+            <b>{record_name_html}</b>
         </p>
 
         <h2>Korrespondierender Datensatz</h2>
@@ -713,7 +723,7 @@ class MainWindow(QMainWindow):
         </p>
 
         <p style="margin-top:0px; margin-left:20px;">
-            <b>{escape(related_name)}</b>
+            <b>{related_name_html}</b>
         </p>
 
         <h2>Beschreibung</h2>

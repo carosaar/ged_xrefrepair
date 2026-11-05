@@ -10,6 +10,7 @@ class NameResolver:
         self._build_persons(records)
         self._build_families(records)
 
+    
     def _build_persons(self, records):
 
         for record in records:
@@ -18,6 +19,11 @@ class NameResolver:
                 continue
 
             name = "<ohne Namen>"
+            birth_date = ""
+            death_date = ""
+
+            in_birth = False
+            in_death = False
 
             for line in record.lines:
 
@@ -29,12 +35,56 @@ class NameResolver:
                         .strip()
                     )
 
-                    break
+                elif line.startswith("1 BIRT"):
+
+                    in_birth = True
+                    in_death = False
+
+                elif line.startswith("1 DEAT"):
+
+                    in_death = True
+                    in_birth = False
+
+                elif line.startswith("1 "):
+
+                    in_birth = False
+                    in_death = False
+
+                elif (
+                    in_birth
+                    and line.startswith("2 DATE ")
+                ):
+
+                    birth_date = line[7:].strip()
+
+                elif (
+                    in_death
+                    and line.startswith("2 DATE ")
+                ):
+
+                    death_date = line[7:].strip()
+
+            dates = []
+
+            if birth_date:
+                dates.append(f"*{birth_date}")
+
+            if death_date:
+                dates.append(f"✝{death_date}")
+
+            display_name = name
+
+            if dates:
+                display_name += (
+                    " ("
+                    + " ".join(dates)
+                    + ")"
+                )
 
             self.person_names[
                 record.xref
-            ] = name
-
+            ] = display_name
+    
     def _build_families(self, records):
 
         for record in records:
@@ -58,7 +108,7 @@ class NameResolver:
 
             self.family_names[
                 record.xref
-            ] = f"{husb_name} & {wife_name}"
+            ] = f"{husb_name} \n& \n{wife_name}"
 
     def resolve(self, xref: str) -> str:
 
