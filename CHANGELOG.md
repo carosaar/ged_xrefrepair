@@ -2,6 +2,64 @@
 
 Alle wichtigen Änderungen an diesem Projekt werden in dieser Datei dokumentiert.
 
+---
+
+## [0.5.1] - Bedienkomfort und Workflow-Verbesserungen
+
+### Verbesserungen
+
+- Die Problemtabelle kann jetzt über die Spaltenüberschriften sortiert werden.
+- Sortierungen werden direkt durch die Standardfunktionen von Qt unterstützt.
+- Die aktuell ausgewählte Zeile bleibt nach einer Sortierung sichtbar.
+- Die Detailansicht bleibt mit dem ausgewählten Problem synchronisiert.
+
+### Problemliste
+
+- Mehrfachauswahl von Problemen wurde deaktiviert.
+- Es kann nun immer nur ein Problem gleichzeitig ausgewählt werden.
+- Die Detailansicht zeigt dadurch jederzeit eindeutig den aktuell aktiven Datensatz.
+
+### Auswahlfunktionen
+
+Neue Funktion:
+
+- Auswahl umkehren
+
+Vorhandene Funktionen:
+
+- Alle auswählen
+- Keine auswählen
+
+Die Anzahl der ausgewählten Probleme wird weiterhin automatisch aktualisiert.
+
+### Dateiverwaltung
+
+- Die zuletzt verwendete GEDCOM-Datei wird gespeichert.
+- Beim Programmstart wird die zuletzt verwendete Datei automatisch wiederhergestellt, sofern sie noch vorhanden ist.
+- Dateiname und Verzeichnis werden unmittelbar nach dem Programmstart angezeigt.
+- Der Benutzer kann die Analyse der wiederhergestellten Datei gezielt per Schaltfläche starten.
+
+### Analyseablauf
+
+- Nach dem bewussten Öffnen einer GEDCOM-Datei wird die Analyse automatisch gestartet.
+- Beim Wiederherstellen der letzten Datei erfolgt keine automatische Analyse.
+- Dadurch bleibt der Programmstart auch bei großen GEDCOM-Dateien nachvollziehbar und kontrollierbar.
+
+### Benutzeroberfläche
+
+- Verbesserte Statusmeldungen während Datei- und Analysevorgängen.
+- Konsistentere Interaktion zwischen Problemtabelle und Detailansicht.
+- Verschiedene kleinere Korrekturen im Verhalten der Tabellenansicht.
+
+### Motivation
+
+Der Schwerpunkt dieses Updates liegt auf der täglichen Arbeit mit größeren GEDCOM-Dateien.
+
+Sortierung, Einzelauswahl, komfortable Auswahlfunktionen und die Wiederherstellung der zuletzt verwendeten Datei reduzieren die Anzahl notwendiger Arbeitsschritte deutlich und verbessern die Übersichtlichkeit bei der Analyse genealogischer Referenzprobleme.
+
+---
+
+
 ## [0.5.0] - Detailansicht und genealogische Namensauflösung
 
 ### Hinzugefügt
