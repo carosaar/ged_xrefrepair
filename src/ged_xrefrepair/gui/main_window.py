@@ -30,6 +30,9 @@ from PySide6.QtWidgets import (
 
 from ged_xrefrepair.services.analysis_service import AnalysisService
 from ged_xrefrepair.services.name_resolver import NameResolver
+from ged_xrefrepair.services.repair_preview_service import (
+    RepairPreviewService
+)
 
 
 class MainWindow(QMainWindow):
@@ -45,7 +48,7 @@ class MainWindow(QMainWindow):
         self.gedcom_file = None
         self.current_issues = []
         
-        self.setWindowTitle("GED XRef Repair v.0.5.1")
+        self.setWindowTitle("GED XRef Repair v.0.6.0")
         self.resize(1400, 900)
 
         self._create_ui()
@@ -826,6 +829,15 @@ class MainWindow(QMainWindow):
         issue = item.data(
             Qt.ItemDataRole.UserRole
         )
+        
+#       Preview der Reparaturaktion erstellen, falls möglich
+        preview_service = RepairPreviewService()
+
+        repair_action = (
+            preview_service.create_action(
+                issue
+            )
+        )
 
         record_name = self.name_resolver.resolve(
             issue.record_id
@@ -845,13 +857,31 @@ class MainWindow(QMainWindow):
             .replace("\n", "<br>")
         )
 
+        repair_html = ""
+        if repair_action:
+
+            repair_html = f"""
+            <h1>Reparatur (Vorschlag)</h1>
+
+            <p>
+                <h2>Aktion: {escape(repair_action.description)}</h2>
+            </p>
+
+            <p>
+                <h2>In Zieldatensatz:</h2>
+                <b>{escape(repair_action.target_record)}</b>
+                        
+                <h2>Einzufügen:</h2>
+                <b><code>{escape(repair_action.new_line)}</code></b>
+            </p>
+            """
+            
         html = f"""
         <html>
         <body style="font-family:'Segoe UI';">
 
-        <br><br>
-        <div align="center">
-            <h1>{escape(issue.issue_type)}</h1>
+        <div>
+            <h1>Problem: {escape(issue.issue_type)}</h1>
         </div>
 
         <h2>Problemdatensatz</h2>
@@ -878,6 +908,7 @@ class MainWindow(QMainWindow):
 
         <p>
             {escape(issue.description)}
+            {repair_html}
         </p>
 
         </body>
