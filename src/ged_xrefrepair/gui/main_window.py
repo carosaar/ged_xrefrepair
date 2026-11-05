@@ -3,7 +3,12 @@
 from pathlib import Path
 from html import escape
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import (
+    Qt,
+    QTimer,
+    QSettings,
+)
+
 from PySide6.QtWidgets import (
     QFileDialog,
     QGridLayout,
@@ -20,6 +25,7 @@ from PySide6.QtWidgets import (
     QTableWidgetItem,
     QHeaderView,
     QTextEdit,
+    QAbstractItemView,
 )
 
 from ged_xrefrepair.services.analysis_service import AnalysisService
@@ -31,13 +37,20 @@ class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
 
+        self.settings = QSettings(
+            "ged-xrefrepair",
+            "GED XRef Repair"
+        )
+        
         self.gedcom_file = None
         self.current_issues = []
         
-        self.setWindowTitle("GED XRef Repair v.0.5.0")
+        self.setWindowTitle("GED XRef Repair v.0.5.1")
         self.resize(1400, 900)
 
         self._create_ui()
+        
+        self.restore_last_file()
      
 
     def _create_ui(self) -> None:
@@ -264,6 +277,8 @@ class MainWindow(QMainWindow):
         self.issue_table = QTableWidget()
 
         self.issue_table.setColumnCount(5)
+        
+        self.issue_table.setSortingEnabled(True)
 
         self.issue_table.setHorizontalHeaderLabels(
             [
@@ -287,12 +302,20 @@ class MainWindow(QMainWindow):
             QTableWidget.SelectionBehavior.SelectRows
         )
 
+        self.issue_table.setSelectionMode(
+            QAbstractItemView.SelectionMode.SingleSelection
+        )
+
         self.issue_table.setEditTriggers(
             QTableWidget.EditTrigger.NoEditTriggers
         )
 
         header = self.issue_table.horizontalHeader()
-
+        
+        header.sortIndicatorChanged.connect(
+           self.on_table_sorted
+        )
+        
         header.setSectionResizeMode(
             0,
             QHeaderView.ResizeMode.ResizeToContents
@@ -322,6 +345,10 @@ class MainWindow(QMainWindow):
         self.clear_all_button = QPushButton(
             "☐ Keine auswählen"
         )
+        
+        self.invert_selection_button = QPushButton(
+            "⇄ Auswahl umkehren"
+        )
 
         self.selected_count_label = QLabel(
             "Ausgewählt: 0"
@@ -333,6 +360,10 @@ class MainWindow(QMainWindow):
 
         selection_layout.addWidget(
             self.clear_all_button
+        )
+        
+        selection_layout.addWidget(
+            self.invert_selection_button
         )
 
         selection_layout.addStretch()
@@ -426,6 +457,11 @@ class MainWindow(QMainWindow):
         self.select_all_button.clicked.connect(
             self.select_all_issues
         )
+ 
+        # Wenn der "Auswahl umkehren"-Button geklickt wird, sollen die ausgewählten Probleme abgewählt und die abgewählten Probleme ausgewählt werden       
+        self.invert_selection_button.clicked.connect(
+            self.invert_selection
+        )
 
         # Wenn der "Keine auswählen"-Button geklickt wird, sollen alle Probleme abgewählt werden
         self.clear_all_button.clicked.connect(
@@ -442,13 +478,43 @@ class MainWindow(QMainWindow):
             self.show_issue_details
         )
         
-
+        self.issue_table.currentCellChanged.connect(
+            self.show_issue_details
+        )
+        
     def select_file(self) -> None:
+
+        last_file = self.settings.value(
+            "last_file",
+            "",
+            str
+        )
+
+        start_dir = ""
+
+        if last_file:
+
+            last_path = Path(last_file)
+
+            if last_path.exists():
+
+                start_dir = str(
+                    last_path.parent
+                )
+                
+        else:
+            start_dir = str(
+                Path.home()
+            )
+
+        self.path_label.setText(
+            start_dir
+        )
 
         filename, _ = QFileDialog.getOpenFileName(
             self,
             "GEDCOM-Datei auswählen",
-            "",
+            start_dir,
             "GEDCOM Dateien (*.ged *.gedcom)"
         )
 
@@ -456,6 +522,11 @@ class MainWindow(QMainWindow):
             return
 
         self.gedcom_file = filename
+
+        self.settings.setValue(
+            "last_file",
+            filename
+        )
 
         path = Path(filename)
 
@@ -473,6 +544,17 @@ class MainWindow(QMainWindow):
             "Datei geladen"
         )
 
+        #
+        # Bei bewusstem Öffnen durch den Benutzer
+        # soll die Analyse sofort starten
+        #
+
+        self.statusBar().showMessage(
+            "Analysiere..."
+        )
+
+        self.start_analysis()
+    
     def start_analysis(self) -> None:
 
         if not self.gedcom_file:
@@ -528,12 +610,20 @@ class MainWindow(QMainWindow):
         issues
     ) -> None:
 
+        self.issue_table.setSortingEnabled(False)
+
         self.issue_table.setRowCount(len(issues))
 
         for row, issue in enumerate(issues):
 
             # 0 Checkbox
             checkbox_item = QTableWidgetItem()
+            
+            checkbox_item.setData(
+                Qt.ItemDataRole.UserRole,
+                issue
+            )
+
 
             checkbox_item.setFlags(
                 checkbox_item.flags()
@@ -584,6 +674,10 @@ class MainWindow(QMainWindow):
             
         self.update_selected_count()
         
+        self.detail_view.clear()
+        
+        self.issue_table.setSortingEnabled(True)
+        
 
     def select_all_issues(self) -> None:
 
@@ -623,6 +717,42 @@ class MainWindow(QMainWindow):
 
         self.update_selected_count()
         
+    def invert_selection(self) -> None:
+
+        self.issue_table.blockSignals(True)
+
+        for row in range(
+            self.issue_table.rowCount()
+        ):
+
+            item = self.issue_table.item(
+                row,
+                0
+            )
+
+            if item is None:
+                continue
+
+            if (
+                item.checkState()
+                == Qt.CheckState.Checked
+            ):
+
+                item.setCheckState(
+                    Qt.CheckState.Unchecked
+                )
+
+            else:
+
+                item.setCheckState(
+                    Qt.CheckState.Checked
+                )
+
+        self.issue_table.blockSignals(False)
+
+        self.update_selected_count()
+    
+            
     def update_selected_count(self) -> None:
 
         selected = 0
@@ -668,16 +798,34 @@ class MainWindow(QMainWindow):
         )
         
         # Wenn ein Problem in der Tabelle ausgewählt wird, sollen die Details angezeigt werden
-    def show_issue_details(self) -> None:
+    def show_issue_details(
+        self,
+        *args
+    ) -> None:
 
         from html import escape
 
         row = self.issue_table.currentRow()
 
+        
         if row < 0:
+            self.detail_view.clear()
+            return
+        
+        row = self.issue_table.currentRow()
+
+        item = self.issue_table.item(
+            row,
+            0
+        )
+
+        if item is None:
             return
 
-        issue = self.current_issues[row]
+
+        issue = item.data(
+            Qt.ItemDataRole.UserRole
+        )
 
         record_name = self.name_resolver.resolve(
             issue.record_id
@@ -738,5 +886,82 @@ class MainWindow(QMainWindow):
 
         self.detail_view.setHtml(html)    
 
+        self.issue_table.scrollToItem(
+            item,
+            QTableWidget.ScrollHint.PositionAtCenter
+        )
+    
+    def on_table_sorted(
+        self,
+        logical_index,
+        order
+    ) -> None:
+
+        QTimer.singleShot(
+            0,
+            self.scroll_current_row_into_view
+        )
         
-   
+    def scroll_current_row_into_view(
+        self
+    ) -> None:
+
+        row = self.issue_table.currentRow()
+
+        if row < 0:
+            return
+
+        item = self.issue_table.item(
+            row,
+            0
+        )
+
+        if item is None:
+            return
+
+        self.issue_table.scrollToItem(
+            item,
+            QTableWidget.ScrollHint.PositionAtCenter
+        )
+        
+    def restore_last_file(self) -> None:
+
+        last_file = self.settings.value(
+            "last_file",
+            "",
+            str
+        )
+
+        if not last_file:
+
+            self.path_label.setText(
+                str(Path.home())
+            )
+
+            return
+        
+        path = Path(last_file)
+
+        if not path.exists():
+
+            self.path_label.setText(
+                str(path.parent)
+            )
+
+            return
+
+        self.gedcom_file = str(path)
+
+        self.filename_label.setText(
+            path.name
+        )
+
+        self.path_label.setText(
+            str(path.parent)
+        )
+
+        self.analyze_button.setEnabled(True)
+
+        self.statusBar().showMessage(
+            "Letzte Datei geladen - Bitte Analyse starten"
+        )

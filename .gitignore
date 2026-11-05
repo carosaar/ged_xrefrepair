@@ -45,4 +45,4 @@ reports/
 # user GEDCOM data
 *.ged
 *.gedcom
-src/ged_xrefrepair/gui/main_window - Kopie.py.txt
+*.txt
