@@ -47,3 +47,4 @@ reports/
 *.gedcom
 *.txt
 docs/Development
+!TEST_00_ALL_PROBLEMS.ged
