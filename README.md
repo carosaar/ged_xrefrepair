@@ -14,30 +14,32 @@ Die Anwendung richtet sich an Familienforscher, Genealogen und Entwickler von GE
 
 Derzeit erkennt die Anwendung folgende Referenzprobleme:
 
-- MISSING_CHIL
+- `MISSING_CHIL` – FAMC-Verweis ohne passenden CHIL-Verweis
+- `MISSING_FAMC` – CHIL-Verweis ohne passenden FAMC-Verweis
+- `MISSING_FAMILY` – Verweis auf eine nicht vorhandene Familie
+- `MISSING_HUSB` / `MISSING_WIFE` – FAMS-Verweis auf eine Familie ohne passende Partnerrolle
+- `MISSING_FAMS_HUSB` / `MISSING_FAMS_WIFE` – HUSB-/WIFE-Eintrag ohne passenden FAMS-Verweis
+- `MULTIPLE_FAMC` – mehrere Abstammungsfamilien für eine Person
 
-Beispiel:
+`MULTIPLE_FAMC` berücksichtigt nur FAMC-Verweise ohne `PEDI`-Untertag oder
+mit leerem `PEDI`-Wert beziehungsweise `PEDI BIRTH`. Verweise mit anderen
+PEDI-Werten, zum Beispiel `ADOPTED` oder `FOSTER`, zählen nicht als
+Abstammungszuordnung. Ein Hinweis wird ausgegeben, wenn mindestens zwei
+unterschiedliche Abstammungsfamilien vorliegen. Daraus wird keine automatische
+Reparatur abgeleitet.
 
-Person:
+Beispiel für einen FAMC-Verweis, der wegen `PEDI ADOPTED` nicht als
+Abstammungszuordnung gezählt wird:
 
 ```gedcom
 0 @I1@ INDI
 1 FAMC @F1@
+1 FAMC @F2@
+2 PEDI ADOPTED
 ```
 
-Familie:
-
-```gedcom
-0 @F1@ FAM
-```
-
-ohne
-
-```gedcom
-1 CHIL @I1@
-```
-
-Die Familie verweist nicht auf das Kind zurück.
+Hier zählt `@F1@` als Abstammungsfamilie; `@F2@` ist durch `PEDI ADOPTED`
+gekennzeichnet und wird von `MULTIPLE_FAMC` nicht mitgezählt.
 
 ---
 
