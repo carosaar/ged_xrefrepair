@@ -152,6 +152,11 @@ eine GEDCOM-Datei auswählen.
 
 Nach dem Öffnen wird die Analyse automatisch gestartet.
 
+Die Anwendung liest GEDCOM-Dateien derzeit als UTF-8. Kann eine Datei nicht
+geöffnet oder gelesen werden oder ist sie nicht gültig UTF-8-kodiert, erscheint
+eine Fehlermeldung. Ergebnisse einer vorherigen Datei werden beim Start einer
+neuen Analyse verworfen und bei einem Fehler nicht weiter angezeigt.
+
 ### Letzte Datei
 
 Die zuletzt verwendete GEDCOM-Datei wird gespeichert.
@@ -260,4 +265,3 @@ Aktive Entwicklung
 ```
 
 Der Schwerpunkt liegt aktuell auf der Erweiterung der Analysefunktionen und der Vorbereitung der automatischen Reparaturlogik.
-

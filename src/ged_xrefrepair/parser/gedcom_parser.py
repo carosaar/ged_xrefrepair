@@ -12,8 +12,7 @@ class GedcomParser:
         path = Path(filename)
 
         lines = path.read_text(
-            encoding="utf-8",
-            errors="ignore"
+            encoding="utf-8"
         ).splitlines()
 
         records = []

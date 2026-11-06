@@ -47,6 +47,7 @@ class MainWindow(QMainWindow):
         
         self.gedcom_file = None
         self.current_issues = []
+        self.name_resolver = None
         
         self.setWindowTitle("GED XRef Repair v.0.6.0")
         self.resize(1400, 900)
@@ -563,12 +564,41 @@ class MainWindow(QMainWindow):
         if not self.gedcom_file:
             return
 
+        self._clear_analysis_results()
         service = AnalysisService()
 
-        # Ergebnis der Analyse abrufen
-        result = service.analyze(
-            self.gedcom_file
-        )
+        try:
+            result = service.analyze(
+                self.gedcom_file
+            )
+        except UnicodeDecodeError as error:
+            self.statusBar().showMessage(
+                "Analyse fehlgeschlagen"
+            )
+            QMessageBox.critical(
+                self,
+                "Datei kann nicht gelesen werden",
+                (
+                    "Die GEDCOM-Datei ist nicht als UTF-8 lesbar. "
+                    "Bitte prüfen Sie die Dateikodierung.\n\n"
+                    f"{error}"
+                ),
+            )
+            return
+        except OSError as error:
+            self.statusBar().showMessage(
+                "Analyse fehlgeschlagen"
+            )
+            QMessageBox.critical(
+                self,
+                "Datei kann nicht gelesen werden",
+                (
+                    "Die GEDCOM-Datei konnte nicht geöffnet oder gelesen "
+                    "werden.\n\n"
+                    f"{error}"
+                ),
+            )
+            return
         
         # Aktuelle Probleme speichern
         self.current_issues = result.issues
@@ -607,6 +637,22 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(
             "Analyse abgeschlossen"
         )        
+
+    def _clear_analysis_results(self) -> None:
+        self.current_issues = []
+        self.name_resolver = None
+
+        self.persons_value.setText("-")
+        self.families_value.setText("-")
+        self.records_value.setText("-")
+        self.issues_value.setText("-")
+
+        self.issue_table.setRowCount(0)
+        self.detail_view.clear()
+        self.selected_count_label.setText("Ausgewählt: 0")
+
+        self.repair_button.setEnabled(False)
+        self.save_button.setEnabled(False)
 
     def populate_issue_table(
         self,
