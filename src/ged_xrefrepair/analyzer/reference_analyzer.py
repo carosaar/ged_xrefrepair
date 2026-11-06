@@ -1,5 +1,13 @@
 import re
 
+from ged_xrefrepair.analyzer.rules.missing_family import (
+    MissingFamilyRule
+)
+
+from ged_xrefrepair.analyzer.rules.missing_chil import (
+    MissingChilRule
+)
+
 from ged_xrefrepair.model.issue import Issue
 from ged_xrefrepair.model.gedcom_record import GedcomRecord
 
@@ -20,8 +28,18 @@ class ReferenceAnalyzer:
     ) -> list[Issue]:
 
         issues = []
+        
+        missing_family_rule = MissingFamilyRule()
+
+        missing_chil_rule = MissingChilRule()
 
         families = {}
+
+        child_families = {}
+
+        #
+        # Familienindex aufbauen
+        #
 
         for record in records:
 
@@ -32,12 +50,30 @@ class ReferenceAnalyzer:
 
             for line in record.lines:
 
-                match = self.chil_pattern.match(line)
+                match = self.chil_pattern.match(
+                    line
+                )
 
                 if match:
-                    children.add(match.group(1))
+
+                    child_xref = match.group(1)
+
+                    children.add(
+                        child_xref
+                    )
+
+                    child_families.setdefault(
+                        child_xref,
+                        set()
+                    ).add(
+                        record.xref
+                    )
 
             families[record.xref] = children
+
+        #
+        # Personen prüfen
+        #
 
         for record in records:
 
@@ -46,36 +82,41 @@ class ReferenceAnalyzer:
 
             for line in record.lines:
 
-                match = self.famc_pattern.match(line)
+                match = self.famc_pattern.match(
+                    line
+                )
 
                 if not match:
                     continue
 
                 family_xref = match.group(1)
 
+                #
+                # Referenzierte Familie fehlt
+                #
+
+                issues.extend(
+                    missing_family_rule.analyze(
+                        record,
+                        family_xref,
+                        families,
+                    )
+                )
+
                 if family_xref not in families:
                     continue
 
-                if record.xref not in families[family_xref]:
+                #
+                # CHIL-Eintrag fehlt
+                #
 
-                    issues.append(
-                        Issue(
-                            issue_type="MISSING_CHIL",
-
-                            # Familie enthält den Fehler
-                            record_id=family_xref,
-
-                            # korrespondierende Person
-                            related_xref=record.xref,
-
-                            description=(
-                                f"{record.xref} verweist "
-                                f"auf {family_xref}, "
-                                "aber CHIL fehlt."
-                            ),
-
-                            auto_repair_possible=True
-                        )
+                issues.extend(
+                    missing_chil_rule.analyze(
+                        record,
+                        family_xref,
+                        families,
+                        child_families,
                     )
-        return issues
+                )
 
+        return issues
