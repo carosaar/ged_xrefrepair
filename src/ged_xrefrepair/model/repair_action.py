@@ -7,6 +7,8 @@ class RepairAction:
 
     action_type: str
 
+    source_record: str
+
     target_record: str
 
     description: str

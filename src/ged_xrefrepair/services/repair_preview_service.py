@@ -16,14 +16,18 @@ class RepairPreviewService:
 
             return RepairAction(
                 action_type="ADD_CHIL",
-                target_record=issue.record_id,
-                description=(
-                    "Kindreferenz ergänzen"
-                ),
-                new_line=(
-                    f"1 CHIL "
-                    f"{issue.related_xref}"
-                ),
+
+                source_record=
+                    issue.related_xref,
+
+                target_record=
+                    issue.record_id,
+
+                description=
+                    "Kindreferenz ergänzen",
+
+                new_line=
+                    f"1 CHIL {issue.related_xref}",
             )
 
         return None

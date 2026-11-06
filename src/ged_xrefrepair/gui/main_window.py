@@ -871,7 +871,7 @@ class MainWindow(QMainWindow):
                 <h2>In Zieldatensatz:</h2>
                 <b>{escape(repair_action.target_record)}</b>
                         
-                <h2>Einzufügen:</h2>
+                <h2>wird eingefügt:</h2>
                 <b><code>{escape(repair_action.new_line)}</code></b>
             </p>
             """
@@ -903,14 +903,8 @@ class MainWindow(QMainWindow):
         <p style="margin-top:0px; margin-left:20px;">
             <b>{related_name_html}</b>
         </p>
-
-        <h2>Beschreibung</h2>
-
-        <p>
-            {escape(issue.description)}
-            {repair_html}
-        </p>
-
+        
+        {repair_html}
         </body>
         </html>
         """
