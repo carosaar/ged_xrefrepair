@@ -42,15 +42,47 @@ def test_missing_chil_not_auto_repairable_if_child_exists_in_other_family():
 
     issues = analyzer.analyze(records)
 
-    assert len(issues) == 1
+    #
+    # Es müssen nun zwei Issues entstehen:
+    # MISSING_CHIL und MISSING_FAMC
+    #
 
-    issue = issues[0]
+    assert len(issues) == 2
 
-    assert issue.issue_type == "MISSING_CHIL"
+    missing_chil = next(
+        issue
+        for issue in issues
+        if issue.issue_type == "MISSING_CHIL"
+    )
+
+    missing_famc = next(
+        issue
+        for issue in issues
+        if issue.issue_type == "MISSING_FAMC"
+    )
 
     #
-    # Laut repair_rules.md:
-    # Kind existiert bereits als CHIL
-    # in anderer Familie.
+    # MISSING_CHIL
     #
-    assert issue.auto_repair_possible is False
+
+    assert missing_chil.record_id == "@F1@"
+
+    assert missing_chil.related_xref == "@I1@"
+
+    assert (
+        missing_chil.auto_repair_possible
+        is False
+    )
+
+    #
+    # MISSING_FAMC
+    #
+
+    assert missing_famc.record_id == "@I1@"
+
+    assert missing_famc.related_xref == "@F2@"
+
+    assert (
+        missing_famc.auto_repair_possible
+        is False
+    )

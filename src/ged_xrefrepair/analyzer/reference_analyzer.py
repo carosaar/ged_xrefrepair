@@ -8,8 +8,18 @@ from ged_xrefrepair.analyzer.rules.missing_chil import (
     MissingChilRule
 )
 
+from ged_xrefrepair.analyzer.rules.missing_famc import (
+    MissingFamcRule
+)
+
+from ged_xrefrepair.analyzer.rules.multiple_famc import (
+    MultipleFamcRule
+)
+
 from ged_xrefrepair.model.issue import Issue
-from ged_xrefrepair.model.gedcom_record import GedcomRecord
+from ged_xrefrepair.model.gedcom_record import (
+    GedcomRecord
+)
 
 
 class ReferenceAnalyzer:
@@ -28,35 +38,46 @@ class ReferenceAnalyzer:
     ) -> list[Issue]:
 
         issues = []
-        
-        missing_family_rule = MissingFamilyRule()
 
+        missing_family_rule = MissingFamilyRule()
         missing_chil_rule = MissingChilRule()
+        missing_famc_rule = MissingFamcRule()
+        multiple_famc_rule = MultipleFamcRule()
 
         families = {}
 
         child_families = {}
 
+        person_families = {}
+
         #
-        # Familienindex aufbauen
+        # Indizes aufbauen
         #
 
         for record in records:
 
-            if record.tag != "FAM":
-                continue
+            #
+            # Familienindex
+            #
 
-            children = set()
+            if record.tag == "FAM":
 
-            for line in record.lines:
+                children = set()
 
-                match = self.chil_pattern.match(
-                    line
-                )
+                for line in record.lines:
 
-                if match:
+                    match = (
+                        self.chil_pattern.match(
+                            line
+                        )
+                    )
 
-                    child_xref = match.group(1)
+                    if not match:
+                        continue
+
+                    child_xref = (
+                        match.group(1)
+                    )
 
                     children.add(
                         child_xref
@@ -69,10 +90,56 @@ class ReferenceAnalyzer:
                         record.xref
                     )
 
-            families[record.xref] = children
+                families[
+                    record.xref
+                ] = children
+
+            #
+            # Personenindex
+            #
+
+            elif record.tag == "INDI":
+
+                for line in record.lines:
+
+                    match = (
+                        self.famc_pattern.match(
+                            line
+                        )
+                    )
+
+                    if not match:
+                        continue
+
+                    family_xref = (
+                        match.group(1)
+                    )
+
+                    person_families.setdefault(
+                        record.xref,
+                        set()
+                    ).add(
+                        family_xref
+                    )
 
         #
-        # Personen prüfen
+        # MULTIPLE_FAMC
+        #
+
+        for person_xref, families_set in (
+            person_families.items()
+        ):
+
+            issues.extend(
+                multiple_famc_rule.analyze(
+                    person_xref,
+                    families_set,
+                )
+            )
+
+        #
+        # MISSING_FAMILY
+        # MISSING_CHIL
         #
 
         for record in records:
@@ -82,18 +149,18 @@ class ReferenceAnalyzer:
 
             for line in record.lines:
 
-                match = self.famc_pattern.match(
-                    line
+                match = (
+                    self.famc_pattern.match(
+                        line
+                    )
                 )
 
                 if not match:
                     continue
 
-                family_xref = match.group(1)
-
-                #
-                # Referenzierte Familie fehlt
-                #
+                family_xref = (
+                    match.group(1)
+                )
 
                 issues.extend(
                     missing_family_rule.analyze(
@@ -106,10 +173,6 @@ class ReferenceAnalyzer:
                 if family_xref not in families:
                     continue
 
-                #
-                # CHIL-Eintrag fehlt
-                #
-
                 issues.extend(
                     missing_chil_rule.analyze(
                         record,
@@ -119,4 +182,38 @@ class ReferenceAnalyzer:
                     )
                 )
 
+        #
+        # MISSING_FAMC
+        #
+
+        for record in records:
+
+            if record.tag != "FAM":
+                continue
+
+            for line in record.lines:
+
+                match = (
+                    self.chil_pattern.match(
+                        line
+                    )
+                )
+
+                if not match:
+                    continue
+
+                child_xref = (
+                    match.group(1)
+                )
+
+                issues.extend(
+                    missing_famc_rule.analyze(
+                        record.xref,
+                        child_xref,
+                        person_families,
+                    )
+                )
+                
+            
+#######            
         return issues

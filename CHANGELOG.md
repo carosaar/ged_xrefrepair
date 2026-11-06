@@ -4,6 +4,41 @@ Alle wichtigen Änderungen an diesem Projekt werden in dieser Datei dokumentiert
 
 ---
 
+## [0.6.0a] - Reparaturvorschau und Regelwerk
+
+### Analyse
+
+Neue Problemtypen:
+
+- MISSING_FAMILY
+- MISSING_FAMC
+- MULTIPLE_FAMC
+
+Bereits vorhanden:
+
+- MISSING_CHIL
+
+### Reparierbarkeit
+
+Die Analyse unterscheidet nun zwischen:
+
+- automatisch reparierbaren Problemen
+- nicht automatisch reparierbaren Problemen
+
+Die Entscheidung erfolgt anhand fachlicher Reparaturregeln.
+
+### Konflikterkennung
+
+Die Analyse erkennt nun widersprüchliche Eltern-Familien-Zuordnungen.
+
+Beispiel:
+
+```gedcom
+1 FAMC @F1@
+1 FAMC @F2@
+
+---
+
 ## [0.6.0] - Reparaturvorschau
 
 ### Hinzugefügt
