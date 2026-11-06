@@ -1,3 +1,5 @@
+import pytest
+
 from ged_xrefrepair.analyzer.reference_analyzer import (
     ReferenceAnalyzer,
 )
@@ -175,3 +177,56 @@ def test_single_husb_candidate_remains_auto_repairable():
     )
 
     assert husb_issue.auto_repair_possible is True
+
+
+@pytest.mark.parametrize(
+    ("issue_type", "sex", "family_role", "uses_fams"),
+    [
+        ("MISSING_HUSB", "F", None, True),
+        ("MISSING_HUSB", None, None, True),
+        ("MISSING_WIFE", "M", None, True),
+        ("MISSING_WIFE", None, None, True),
+        ("MISSING_FAMS_HUSB", "F", "HUSB", False),
+        ("MISSING_FAMS_HUSB", None, "HUSB", False),
+        ("MISSING_FAMS_WIFE", "M", "WIFE", False),
+        ("MISSING_FAMS_WIFE", None, "WIFE", False),
+    ],
+)
+def test_spouse_repairs_require_matching_known_sex(
+    issue_type,
+    sex,
+    family_role,
+    uses_fams,
+):
+    person_lines = ["0 @I1@ INDI"]
+    if sex is not None:
+        person_lines.append(f"1 SEX {sex}")
+    if uses_fams:
+        person_lines.append("1 FAMS @F1@")
+
+    family_lines = ["0 @F1@ FAM"]
+    if family_role is not None:
+        family_lines.append(f"1 {family_role} @I1@")
+
+    records = [
+        GedcomRecord(
+            xref="@I1@",
+            tag="INDI",
+            lines=person_lines,
+        ),
+        GedcomRecord(
+            xref="@F1@",
+            tag="FAM",
+            lines=family_lines,
+        ),
+    ]
+
+    issues = analyze(records)
+    target_issues = [
+        issue
+        for issue in issues
+        if issue.issue_type == issue_type
+    ]
+
+    assert len(target_issues) == 1
+    assert target_issues[0].auto_repair_possible is False

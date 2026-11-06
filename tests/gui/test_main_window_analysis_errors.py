@@ -51,6 +51,7 @@ def wait_for_analysis(window, timeout_ms=5000):
     [
         (FileNotFoundError("missing.ged"), "konnte nicht geöffnet"),
         (UnicodeDecodeError("utf-8", b"\xff", 0, 1, "invalid start byte"), "nicht als UTF-8 lesbar"),
+        (RuntimeError("unexpected failure"), "unerwarteter Fehler"),
     ],
 )
 def test_analysis_error_clears_previous_results(
@@ -134,6 +135,9 @@ def test_analysis_runs_in_background_and_duplicate_start_is_ignored(
     assert not window.open_button.isEnabled()
     assert not window.analyze_button.isEnabled()
 
+    window.close()
+    assert window.isVisible()
+
     window.start_analysis()
     assert len(calls) <= 1
 
@@ -142,6 +146,43 @@ def test_analysis_runs_in_background_and_duplicate_start_is_ignored(
     wait_for_analysis(window)
     assert ui_timer_fired
     assert calls == [window.gedcom_file]
+    assert window.statusBar().currentMessage() == "Analyse abgeschlossen"
+    assert window.open_button.isEnabled()
+    assert window.analyze_button.isEnabled()
+    window.close()
+
+
+def test_successful_analysis_with_no_issues(
+    application,
+    monkeypatch,
+):
+    window = MainWindow()
+    window.gedcom_file = "empty.ged"
+    result = AnalysisResult(
+        individuals=0,
+        families=0,
+        records=0,
+        issues_count=0,
+        issues=[],
+        record_list=[],
+    )
+    monkeypatch.setattr(
+        AnalysisService,
+        "analyze",
+        lambda self, filename: result,
+    )
+
+    window.show()
+    application.processEvents()
+    window.start_analysis()
+    wait_for_analysis(window)
+
+    assert window.persons_value.text() == "0"
+    assert window.families_value.text() == "0"
+    assert window.records_value.text() == "0"
+    assert window.issues_value.text() == "0"
+    assert window.issue_table.rowCount() == 0
+    assert window.current_issues == []
     assert window.statusBar().currentMessage() == "Analyse abgeschlossen"
     assert window.open_button.isEnabled()
     assert window.analyze_button.isEnabled()

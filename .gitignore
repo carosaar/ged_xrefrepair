@@ -48,3 +48,4 @@ reports/
 *.txt
 docs/Development
 !TEST_00_ALL_PROBLEMS.ged
+!tests/sample_data/TEST_00_ALL_PROBLEMS.ged
