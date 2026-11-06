@@ -13,6 +13,7 @@ class MissingWifeRule:
         family_xref: str,
         family_wife: dict,
         sex_map: dict,
+        candidate_count: int = 1,
     ) -> list[Issue]:
 
         #
@@ -34,6 +35,14 @@ class MissingWifeRule:
             sex_map.get(
                 person_xref
             ) == "F"
+            and candidate_count == 1
+        )
+
+        ambiguity_note = (
+            " Mehrere Personen mit SEX F verweisen auf diese Familie; "
+            "die Zuordnung ist mehrdeutig."
+            if candidate_count > 1
+            else ""
         )
 
         return [
@@ -48,6 +57,7 @@ class MissingWifeRule:
                     f"{person_xref} verweist "
                     f"auf {family_xref}, "
                     f"aber WIFE fehlt."
+                    f"{ambiguity_note}"
                 ),
 
                 auto_repair_possible=

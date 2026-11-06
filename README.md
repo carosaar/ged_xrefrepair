@@ -16,10 +16,22 @@ Derzeit erkennt die Anwendung folgende Referenzprobleme:
 
 - `MISSING_CHIL` – FAMC-Verweis ohne passenden CHIL-Verweis
 - `MISSING_FAMC` – CHIL-Verweis ohne passenden FAMC-Verweis
-- `MISSING_FAMILY` – Verweis auf eine nicht vorhandene Familie
+- `MISSING_FAMILY` – FAMC-/FAMS-Verweis auf eine nicht vorhandene Familie
 - `MISSING_HUSB` / `MISSING_WIFE` – FAMS-Verweis auf eine Familie ohne passende Partnerrolle
 - `MISSING_FAMS_HUSB` / `MISSING_FAMS_WIFE` – HUSB-/WIFE-Eintrag ohne passenden FAMS-Verweis
+- `MISSING_PERSON` – HUSB-/WIFE-Verweis auf eine nicht vorhandene Person
 - `MULTIPLE_FAMC` – mehrere Abstammungsfamilien für eine Person
+
+Ein HUSB-/WIFE-Verweis auf eine nicht vorhandene Person wird als
+`MISSING_PERSON` gemeldet, nicht als fehlender FAMS-Rückverweis. Verweist
+`FAMS` auf eine nicht vorhandene Familie, wird `MISSING_FAMILY` gemeldet und
+keine fehlende HUSB-/WIFE-Rolle abgeleitet.
+
+Wenn mehrere Personen mit passendem SEX über `FAMS` auf dieselbe Familie ohne
+HUSB beziehungsweise WIFE verweisen, bleiben die einzelnen Kandidaten in der
+Problemliste sichtbar. Ihre Zuordnung gilt als mehrdeutig und wird nicht zur
+automatischen Reparatur vorgeschlagen. Eine automatische Zuordnung setzt einen
+einzigen passenden Kandidaten voraus.
 
 `MULTIPLE_FAMC` berücksichtigt nur FAMC-Verweise ohne `PEDI`-Untertag oder
 mit leerem `PEDI`-Wert beziehungsweise `PEDI BIRTH`. Verweise mit anderen

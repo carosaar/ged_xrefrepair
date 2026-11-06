@@ -6,6 +6,10 @@ from ged_xrefrepair.analyzer.rules.missing_family import (
     MissingFamilyRule
 )
 
+from ged_xrefrepair.analyzer.rules.missing_person import (
+    MissingPersonRule
+)
+
 from ged_xrefrepair.analyzer.rules.missing_chil import (
     MissingChilRule
 )
@@ -81,6 +85,10 @@ class ReferenceAnalyzer:
             MissingFamilyRule()
         )
 
+        missing_person_rule = (
+            MissingPersonRule()
+        )
+
         missing_chil_rule = (
             MissingChilRule()
         )
@@ -124,6 +132,11 @@ class ReferenceAnalyzer:
         person_spouse_families = {}
 
         sex_map = {}
+        person_xrefs = {
+            record.xref
+            for record in records
+            if record.tag == "INDI"
+        }
 
         #
         # Indizes aufbauen
@@ -360,14 +373,90 @@ class ReferenceAnalyzer:
                 )
 
         #
+        # MISSING_FAMILY über FAMS
+        #
+
+        for record in records:
+
+            if record.tag != "INDI":
+                continue
+
+            for line in record.lines:
+
+                match = self.fams_pattern.match(line)
+                if not match:
+                    continue
+
+                issues.extend(
+                    missing_family_rule.analyze(
+                        record,
+                        match.group(1),
+                        families,
+                    )
+                )
+
+        #
+        # MISSING_PERSON über HUSB/WIFE
+        #
+
+        for family_xref, person_xref in family_husb.items():
+            if person_xref:
+                issues.extend(
+                    missing_person_rule.analyze(
+                        family_xref,
+                        person_xref,
+                        "HUSB",
+                        person_xrefs,
+                    )
+                )
+
+        for family_xref, person_xref in family_wife.items():
+            if person_xref:
+                issues.extend(
+                    missing_person_rule.analyze(
+                        family_xref,
+                        person_xref,
+                        "WIFE",
+                        person_xrefs,
+                    )
+                )
+
+        #
         # MISSING_FAMS_HUSB
         #
+
+        husb_candidate_counts = {}
+        wife_candidate_counts = {}
+
+        for person_xref, family_set in person_spouse_families.items():
+            for family_xref in family_set:
+                if family_xref not in families:
+                    continue
+
+                if (
+                    not family_husb.get(family_xref)
+                    and sex_map.get(person_xref) == "M"
+                ):
+                    husb_candidate_counts[family_xref] = (
+                        husb_candidate_counts.get(family_xref, 0) + 1
+                    )
+
+                if (
+                    not family_wife.get(family_xref)
+                    and sex_map.get(person_xref) == "F"
+                ):
+                    wife_candidate_counts[family_xref] = (
+                        wife_candidate_counts.get(family_xref, 0) + 1
+                    )
 
         for family_xref, husb_xref in (
             family_husb.items()
         ):
 
             if not husb_xref:
+                continue
+
+            if husb_xref not in person_xrefs:
                 continue
 
             issues.extend(
@@ -390,6 +479,9 @@ class ReferenceAnalyzer:
             if not wife_xref:
                 continue
 
+            if wife_xref not in person_xrefs:
+                continue
+
             issues.extend(
                 missing_fams_wife_rule.analyze(
                     family_xref,
@@ -410,12 +502,16 @@ class ReferenceAnalyzer:
 
             for family_xref in family_set:
 
+                if family_xref not in families:
+                    continue
+
                 issues.extend(
                     missing_husb_rule.analyze(
                         person_xref,
                         family_xref,
                         family_husb,
                         sex_map,
+                        husb_candidate_counts.get(family_xref, 0),
                     )
                 )
         #
@@ -429,12 +525,16 @@ class ReferenceAnalyzer:
 
             for family_xref in family_set:
 
+                if family_xref not in families:
+                    continue
+
                 issues.extend(
                     missing_wife_rule.analyze(
                         person_xref,
                         family_xref,
                         family_wife,
                         sex_map,
+                        wife_candidate_counts.get(family_xref, 0),
                     )
                 )
 

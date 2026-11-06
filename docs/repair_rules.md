@@ -182,6 +182,10 @@ INDI.FAMS -> FAM
 
 Der referenzierte Familiendatensatz existiert.
 
+Gibt es mehrere Personen mit `SEX M`, die über `FAMS` auf dieselbe Familie
+verweisen, sind sie mehrere mögliche Kandidaten. Alle Kandidaten werden
+angezeigt; keiner davon ist automatisch reparierbar.
+
 ## 3.3. Automatische Reparatur möglich
 
 JA, wenn:
@@ -190,6 +194,7 @@ JA, wenn:
 - kein HUSB-Eintrag vorhanden ist UND
 - die Person existiert UND
 - das SEX-Tag den Wert `1 SEX M` enthält
+- genau eine Person mit `SEX M` über `FAMS` auf diese Familie verweist
 
 ## 3.4. Automatische Reparatur nicht möglich
 
@@ -197,6 +202,7 @@ NEIN, wenn:
 
 - SEX fehlt ODER
 - SEX nicht `M` ist ODER
+- mehrere passende Personen als HUSB-Kandidat infrage kommen ODER
 - bereits ein HUSB-Eintrag vorhanden ist ODER
 - der Familiendatensatz fehlt
 
@@ -248,6 +254,10 @@ INDI.FAMS -> FAM
 
 Der referenzierte Familiendatensatz existiert.
 
+Gibt es mehrere Personen mit `SEX F`, die über `FAMS` auf dieselbe Familie
+verweisen, sind sie mehrere mögliche Kandidaten. Alle Kandidaten werden
+angezeigt; keiner davon ist automatisch reparierbar.
+
 ## 4.3. Automatische Reparatur möglich
 
 JA, wenn:
@@ -256,6 +266,7 @@ JA, wenn:
 - kein WIFE-Eintrag vorhanden ist UND
 - die Person existiert UND
 - das SEX-Tag den Wert `1 SEX F` enthält
+- genau eine Person mit `SEX F` über `FAMS` auf diese Familie verweist
 
 ## 4.4. Automatische Reparatur nicht möglich
 
@@ -263,6 +274,7 @@ NEIN, wenn:
 
 - SEX fehlt ODER
 - SEX nicht `F` ist ODER
+- mehrere passende Personen als WIFE-Kandidat infrage kommen ODER
 - bereits ein WIFE-Eintrag vorhanden ist ODER
 - der Familiendatensatz fehlt
 
@@ -386,9 +398,22 @@ Einfügen in den Personendatensatz:
 
 ---
 
-# 6. MULTIPLE_FAMC
+# 6. MISSING_PERSON
 
 ## 6.1. Beschreibung
+
+Ein HUSB- oder WIFE-Eintrag in einem Familiendatensatz verweist auf eine
+Person, für die kein INDI-Datensatz existiert.
+
+Der Befund wird als `MISSING_PERSON` gemeldet. Er wird nicht als fehlender
+FAMS-Rückverweis klassifiziert, da eine nicht vorhandene Person keinen
+FAMS-Eintrag enthalten kann.
+
+---
+
+# 7. MULTIPLE_FAMC
+
+## 7.1. Beschreibung
 
 Eine Person hat mehrere Abstammungszuordnungen über `FAMC`. Als Abstammungszuordnung
 zählen nur FAMC-Verweise ohne `PEDI`-Untertag oder mit leerem `PEDI`-Wert bzw.
@@ -397,7 +422,7 @@ zählen nur FAMC-Verweise ohne `PEDI`-Untertag oder mit leerem `PEDI`-Wert bzw.
 FAMC-Verweise mit anderen `PEDI`-Werten, zum Beispiel `ADOPTED` oder `FOSTER`,
 werden für diese Regel nicht als Abstammungszuordnung gezählt.
 
-## 6.2. Erkennung
+## 7.2. Erkennung
 
 `MULTIPLE_FAMC` wird nur gemeldet, wenn mindestens zwei unterschiedliche
 Abstammungsfamilien auf diese Weise zugeordnet sind. Die Regel nimmt keine
@@ -417,8 +442,8 @@ In diesem Beispiel zählt nur `@F1@` als Abstammungsfamilie; `@F2@` ist durch
 
 ---
 
-# 7. FAZIT
-## 7.1. Grundregeln für automatische Reparaturen
+# 8. FAZIT
+## 8.1. Grundregeln für automatische Reparaturen
 
 Eine automatische Reparatur darf nur durchgeführt werden, wenn:
 
@@ -428,7 +453,7 @@ Eine automatische Reparatur darf nur durchgeführt werden, wenn:
 - keine bereits vorhandenen alternativen Beziehungen überschrieben werden
 
 
-## 7.2. Nicht automatisch reparierbare Fälle
+## 8.2. Nicht automatisch reparierbare Fälle
 
 Die folgenden Fehlertypen gelten grundsätzlich als nicht automatisch reparierbar:
 
@@ -443,14 +468,14 @@ In diesen Fällen darf GED XRef Repair lediglich einen Vorschlag anzeigen und mu
 ---
 ---
 
-# 8. Übersichtsmatrix
+# 9. Übersichtsmatrix
 
 | Problemtyp | Beschreibung | Automatisch reparierbar | Voraussetzung |
 |------------|-------------|-------------------------|---------------|
 | MISSING_CHIL | FAMC vorhanden, CHIL fehlt | ✅ Ja | Familie existiert, kein CHIL vorhanden, keine konkurrierende Familie |
 | MISSING_FAMC | CHIL vorhanden, FAMC fehlt | ✅ Ja | Person existiert, kein anderer FAMC-Eintrag vorhanden |
-| MISSING_HUSB | FAMS vorhanden, HUSB fehlt | ✅ Ja | Familie existiert, SEX=M, kein HUSB vorhanden |
-| MISSING_WIFE | FAMS vorhanden, WIFE fehlt | ✅ Ja | Familie existiert, SEX=F, kein WIFE vorhanden |
+| MISSING_HUSB | FAMS vorhanden, HUSB fehlt | ✅ Ja | Familie existiert, genau ein Kandidat mit SEX=M, kein HUSB vorhanden |
+| MISSING_WIFE | FAMS vorhanden, WIFE fehlt | ✅ Ja | Familie existiert, genau ein Kandidat mit SEX=F, kein WIFE vorhanden |
 | MISSING_FAMS_HUSB | HUSB vorhanden, FAMS fehlt | ✅ Ja | Person existiert, SEX=M |
 | MISSING_FAMS_WIFE | WIFE vorhanden, FAMS fehlt | ✅ Ja | Person existiert, SEX=F |
 | MISSING_PERSON | Verweis auf nicht vorhandene Person | ❌ Nein | Zielperson fehlt |

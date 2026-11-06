@@ -13,6 +13,7 @@ class MissingHusbRule:
         family_xref,
         family_husb,
         sex_map,
+        candidate_count: int = 1,
     ) -> list[Issue]:
 
         if family_husb.get(
@@ -21,9 +22,15 @@ class MissingHusbRule:
             return []
 
         auto_repair = (
-            sex_map.get(
-                person_xref
-            ) == "M"
+            sex_map.get(person_xref) == "M"
+            and candidate_count == 1
+        )
+
+        ambiguity_note = (
+            " Mehrere Personen mit SEX M verweisen auf diese Familie; "
+            "die Zuordnung ist mehrdeutig."
+            if candidate_count > 1
+            else ""
         )
 
         return [
@@ -38,6 +45,7 @@ class MissingHusbRule:
                     f"{person_xref} verweist "
                     f"auf {family_xref}, "
                     f"aber HUSB fehlt."
+                    f"{ambiguity_note}"
                 ),
 
                 auto_repair_possible=
