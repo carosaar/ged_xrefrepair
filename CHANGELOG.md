@@ -36,6 +36,61 @@ Beispiel:
 ```gedcom
 1 FAMC @F1@
 1 FAMC @F2@
+```
+
+
+Diese Situation wird als:
+
+MULTIPLE_FAMC
+
+
+gekennzeichnet und von der automatischen Reparatur ausgeschlossen.
+
+## Architektur
+
+Der Analyzer wurde auf eine regelbasierte Struktur umgestellt.
+
+Neue Komponenten:
+
+MissingFamilyRule
+MissingChilRule
+MissingFamcRule
+MultipleFamcRule
+
+Dadurch können weitere Prüffälle unabhängig voneinander entwickelt werden.
+
+## Qualitätssicherung
+
+Automatisierte Tests mit **pytest** wurden eingeführt.
+
+Abgedeckte Bereiche:
+
+* MISSING_CHIL
+* MISSING_FAMILY
+* MISSING_FAMC
+* Reparaturvorschau
+* Konfliktfälle
+* Dokumentation
+
+Neues Dokument: `docs/repair_rules.md` beschreibt:
+
+* Problemtypen
+* Voraussetzungen
+* Reparaturmöglichkeiten
+* Ausschlusskriterien
+* Repairability Matrix
+* Status
+
+Der Eltern-Kind-Bereich ist nun weitgehend modelliert:
+
+`FAMC ↔ CHIL`
+
+
+Weitere Arbeiten konzentrieren sich auf die Partnerbeziehungen:
+
+`FAMS ↔ HUSB`
+`FAMS ↔ WIFE`
+
 
 ---
 
