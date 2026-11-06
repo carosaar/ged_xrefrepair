@@ -4,6 +4,116 @@ Alle wichtigen Änderungen an diesem Projekt werden in dieser Datei dokumentiert
 
 ---
 
+## [0.6.0b] - Analyse- und Reparaturregeln erweitert
+
+### Neue Problemtypen
+
+Folgende zusätzliche Referenzfehler werden nun erkannt:
+
+- MISSING_HUSB
+- MISSING_WIFE
+- MISSING_FAMS_HUSB
+- MISSING_FAMS_WIFE
+
+### Partner-Familien-Beziehungen
+
+Die Analyse umfasst nun beide Richtungen von Ehepartner-Referenzen:
+
+```text
+INDI.FAMS <-> FAM.HUSB
+INDI.FAMS <-> FAM.WIFE
+
+
+Dadurch können fehlende Gegenreferenzen zuverlässig erkannt werden.
+
+Reparierbarkeit
+
+Für alle neuen Problemtypen wird bewertet, ob eine automatische Reparatur möglich ist.
+
+Beispiele:
+
+MISSING_HUSB
+
+
+Automatisch reparierbar, wenn:
+
+Familiendatensatz existiert
+kein HUSB-Eintrag vorhanden ist
+Person existiert
+SEX=M
+MISSING_WIFE
+
+
+Automatisch reparierbar, wenn:
+
+Familiendatensatz existiert
+kein WIFE-Eintrag vorhanden ist
+Person existiert
+SEX=F
+MISSING_FAMS_HUSB
+
+
+Automatisch reparierbar, wenn:
+
+HUSB vorhanden
+Person existiert
+kein passender FAMS-Eintrag vorhanden
+SEX=M
+MISSING_FAMS_WIFE
+
+
+Automatisch reparierbar, wenn:
+
+WIFE vorhanden
+Person existiert
+kein passender FAMS-Eintrag vorhanden
+SEX=F
+Analyzer
+
+Der Analyzer wurde erweitert um zusätzliche Indizes:
+
+FAMS
+HUSB
+WIFE
+SEX
+
+Diese Strukturen bilden die Grundlage für weitere Partner- und Familienprüfungen.
+
+Tests
+
+Neue automatische Tests:
+
+test_missing_husb.py
+test_missing_wife.py
+test_missing_fams_husb.py
+test_missing_fams_wife.py
+
+Alle Tests laufen erfolgreich unter pytest.
+
+Fachlicher Status
+
+Die Kernbeziehungen des GEDCOM-Referenzmodells werden nun in beide Richtungen geprüft:
+
+FAMC <-> CHIL
+FAMS <-> HUSB
+FAMS <-> WIFE
+
+
+Damit ist die erste vollständige Generation der Referenzkonsistenzanalyse umgesetzt.
+
+Nächste Schritte
+
+Geplante Erweiterungen:
+
+RepairPreview für alle neuen Problemtypen
+Konfliktfälle für Partnerbeziehungen
+MULTIPLE_HUSB
+MULTIPLE_WIFE
+eigentliche Reparaturausführung (RepairEngine)
+
+
+---
+
 ## [0.6.0a] - Reparaturvorschau und Regelwerk
 
 ### Analyse
