@@ -386,8 +386,39 @@ Einfügen in den Personendatensatz:
 
 ---
 
-# 6. FAZIT
-## 6.1. Grundregeln für automatische Reparaturen
+# 6. MULTIPLE_FAMC
+
+## 6.1. Beschreibung
+
+Eine Person hat mehrere Abstammungszuordnungen über `FAMC`. Als Abstammungszuordnung
+zählen nur FAMC-Verweise ohne `PEDI`-Untertag oder mit leerem `PEDI`-Wert bzw.
+`PEDI BIRTH`.
+
+FAMC-Verweise mit anderen `PEDI`-Werten, zum Beispiel `ADOPTED` oder `FOSTER`,
+werden für diese Regel nicht als Abstammungszuordnung gezählt.
+
+## 6.2. Erkennung
+
+`MULTIPLE_FAMC` wird nur gemeldet, wenn mindestens zwei unterschiedliche
+Abstammungsfamilien auf diese Weise zugeordnet sind. Die Regel nimmt keine
+automatische Änderung vor; mögliche Zuordnungen müssen fachlich geprüft werden.
+
+Beispiel:
+
+```gedcom
+0 @I1@ INDI
+1 FAMC @F1@
+1 FAMC @F2@
+2 PEDI ADOPTED
+```
+
+In diesem Beispiel zählt nur `@F1@` als Abstammungsfamilie; `@F2@` ist durch
+`PEDI ADOPTED` gekennzeichnet.
+
+---
+
+# 7. FAZIT
+## 7.1. Grundregeln für automatische Reparaturen
 
 Eine automatische Reparatur darf nur durchgeführt werden, wenn:
 
@@ -397,7 +428,7 @@ Eine automatische Reparatur darf nur durchgeführt werden, wenn:
 - keine bereits vorhandenen alternativen Beziehungen überschrieben werden
 
 
-## 6.2. Nicht automatisch reparierbare Fälle
+## 7.2. Nicht automatisch reparierbare Fälle
 
 Die folgenden Fehlertypen gelten grundsätzlich als nicht automatisch reparierbar:
 
@@ -412,7 +443,7 @@ In diesen Fällen darf GED XRef Repair lediglich einen Vorschlag anzeigen und mu
 ---
 ---
 
-# 7. Übersichtsmatrix
+# 8. Übersichtsmatrix
 
 | Problemtyp | Beschreibung | Automatisch reparierbar | Voraussetzung |
 |------------|-------------|-------------------------|---------------|
@@ -424,8 +455,7 @@ In diesen Fällen darf GED XRef Repair lediglich einen Vorschlag anzeigen und mu
 | MISSING_FAMS_WIFE | WIFE vorhanden, FAMS fehlt | ✅ Ja | Person existiert, SEX=F |
 | MISSING_PERSON | Verweis auf nicht vorhandene Person | ❌ Nein | Zielperson fehlt |
 | MISSING_FAMILY | Verweis auf nicht vorhandene Familie | ❌ Nein | Zielfamilie fehlt |
-| MULTIPLE_FAMC | Mehrere konkurrierende Elternfamilien | ❌ Nein | Fachliche Entscheidung erforderlich |
+| MULTIPLE_FAMC | Mehrere Abstammungsfamilien (FAMC ohne PEDI oder PEDI leer/BIRTH) | ❌ Nein | Mindestens zwei unterschiedliche Abstammungsfamilien |
 | MULTIPLE_HUSB | Mehrere mögliche Ehemänner | ❌ Nein | Fachliche Entscheidung erforderlich |
 | MULTIPLE_WIFE | Mehrere mögliche Ehefrauen | ❌ Nein | Fachliche Entscheidung erforderlich |
 | UNKNOWN_SEX | Geschlecht fehlt oder unbekannt | ❌ Nein | Rolle nicht eindeutig bestimmbar |
-
