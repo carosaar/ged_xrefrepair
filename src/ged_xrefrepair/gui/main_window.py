@@ -7,7 +7,10 @@ from PySide6.QtCore import (
     Qt,
     QTimer,
     QSettings,
+    QThread,
 )
+
+from PySide6.QtGui import QCloseEvent
 
 from PySide6.QtWidgets import (
     QFileDialog,
@@ -28,8 +31,9 @@ from PySide6.QtWidgets import (
     QAbstractItemView,
 )
 
-from ged_xrefrepair.services.analysis_service import AnalysisService
+from ged_xrefrepair.gui.analysis_worker import AnalysisWorker
 from ged_xrefrepair.services.name_resolver import NameResolver
+from ged_xrefrepair.analyzer.analysis_result import AnalysisResult
 from ged_xrefrepair.services.repair_preview_service import (
     RepairPreviewService
 )
@@ -48,8 +52,14 @@ class MainWindow(QMainWindow):
         self.gedcom_file = None
         self.current_issues = []
         self.name_resolver = None
+        self._analysis_thread: QThread | None = None
+        self._analysis_worker: AnalysisWorker | None = None
+        self._analysis_in_progress = False
+        self._analysis_thread_done = False
+        self._analysis_display_done = False
+        self._analysis_final_message = ""
         
-        self.setWindowTitle("GED XRef Repair v.0.6.0")
+        self.setWindowTitle("GED XRef Repair v.0.7.0")
         self.resize(1400, 900)
 
         self._create_ui()
@@ -456,7 +466,7 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(
             "Bereit"
         )
-        
+
         # Wenn der "Alle auswählen"-Button geklickt wird, sollen alle Probleme ausgewählt werden
         self.select_all_button.clicked.connect(
             self.select_all_issues
@@ -549,53 +559,52 @@ class MainWindow(QMainWindow):
         # soll die Analyse sofort starten
         #
 
-        self.statusBar().showMessage(
-            "Analysiere..."
-        )
-
         self.start_analysis()
     
     def start_analysis(self) -> None:
 
-        if not self.gedcom_file:
+        if not self.gedcom_file or self._analysis_in_progress:
             return
 
+        self._analysis_in_progress = True
+        self._analysis_thread_done = False
+        self._analysis_display_done = False
+        self._analysis_final_message = ""
         self._clear_analysis_results()
-        service = AnalysisService()
+        self.open_button.setEnabled(False)
+        self.analyze_button.setEnabled(False)
+        self.statusBar().showMessage("Analyse läuft...")
 
-        try:
-            result = service.analyze(
-                self.gedcom_file
-            )
-        except UnicodeDecodeError as error:
-            self.statusBar().showMessage(
-                "Analyse fehlgeschlagen"
-            )
-            QMessageBox.critical(
-                self,
-                "Datei kann nicht gelesen werden",
-                (
-                    "Die GEDCOM-Datei ist nicht als UTF-8 lesbar. "
-                    "Bitte prüfen Sie die Dateikodierung.\n\n"
-                    f"{error}"
-                ),
-            )
-            return
-        except OSError as error:
-            self.statusBar().showMessage(
-                "Analyse fehlgeschlagen"
-            )
-            QMessageBox.critical(
-                self,
-                "Datei kann nicht gelesen werden",
-                (
-                    "Die GEDCOM-Datei konnte nicht geöffnet oder gelesen "
-                    "werden.\n\n"
-                    f"{error}"
-                ),
-            )
-            return
-        
+        self._analysis_thread = QThread(self)
+        self._analysis_worker = AnalysisWorker(self.gedcom_file)
+        self._analysis_worker.moveToThread(self._analysis_thread)
+        self._analysis_thread.started.connect(
+            self._analysis_worker.run
+        )
+        self._analysis_worker.result_ready.connect(
+            self._on_analysis_completed
+        )
+        self._analysis_worker.failed.connect(
+            self._on_analysis_failed
+        )
+        self._analysis_worker.finished.connect(
+            self._analysis_thread.quit
+        )
+        self._analysis_thread.finished.connect(
+            self._analysis_worker.deleteLater
+        )
+        self._analysis_thread.finished.connect(
+            self._on_analysis_thread_finished
+        )
+        self._analysis_thread.finished.connect(
+            self._analysis_thread.deleteLater
+        )
+        self._analysis_thread.start()
+
+    def _on_analysis_completed(
+        self,
+        result: AnalysisResult,
+    ) -> None:
         # Aktuelle Probleme speichern
         self.current_issues = result.issues
         
@@ -624,15 +633,70 @@ class MainWindow(QMainWindow):
             str(result.issues_count)
         )
 
-        # Probleme in der Tabelle anzeigen
-        self.populate_issue_table(
-            result.issues
+        self._analysis_final_message = "Analyse abgeschlossen"
+        self._start_issue_table_population(result.issues)
+
+    def _on_analysis_failed(self, error: Exception) -> None:
+        self._analysis_final_message = "Analyse fehlgeschlagen"
+
+        if isinstance(error, UnicodeDecodeError):
+            title = "Datei kann nicht gelesen werden"
+            message = (
+                "Die GEDCOM-Datei ist nicht als UTF-8 lesbar. "
+                "Bitte prüfen Sie die Dateikodierung.\n\n"
+                f"{error}"
+            )
+        elif isinstance(error, OSError):
+            title = "Datei kann nicht gelesen werden"
+            message = (
+                "Die GEDCOM-Datei konnte nicht geöffnet oder gelesen "
+                "werden.\n\n"
+                f"{error}"
+            )
+        else:
+            title = "Analyse fehlgeschlagen"
+            message = (
+                "Bei der Analyse ist ein unerwarteter Fehler aufgetreten. "
+                "Details wurden protokolliert.\n\n"
+                f"{error}"
+            )
+
+        QMessageBox.critical(
+            self,
+            title,
+            message,
+        )
+        self._analysis_display_done = True
+        self._finish_analysis_if_ready()
+
+    def _on_analysis_thread_finished(self) -> None:
+        self._analysis_worker = None
+        self._analysis_thread = None
+        self._analysis_thread_done = True
+        self._finish_analysis_if_ready()
+
+    def _finish_analysis_if_ready(self) -> None:
+        if not (
+            self._analysis_thread_done
+            and self._analysis_display_done
+        ):
+            return
+
+        self._analysis_in_progress = False
+        self.open_button.setEnabled(True)
+        self.analyze_button.setEnabled(
+            self.gedcom_file is not None
+        )
+        self.statusBar().showMessage(
+            self._analysis_final_message
         )
 
-        # Buttons aktivieren
-        self.statusBar().showMessage(
-            "Analyse abgeschlossen"
-        )        
+    def closeEvent(self, event: QCloseEvent) -> None:
+        if self._analysis_in_progress:
+            event.ignore()
+            return
+
+        event.accept()
 
     def _clear_analysis_results(self) -> None:
         self.current_issues = []
@@ -654,61 +718,46 @@ class MainWindow(QMainWindow):
         self,
         issues
     ) -> None:
+        self._start_issue_table_population(issues)
 
+    def _start_issue_table_population(self, issues) -> None:
         self.issue_table.setSortingEnabled(False)
-
         self.issue_table.setRowCount(len(issues))
-
         for row, issue in enumerate(issues):
-
-            # 0 Checkbox
             checkbox_item = QTableWidgetItem()
-            
             checkbox_item.setData(
                 Qt.ItemDataRole.UserRole,
                 issue
             )
-
-
             checkbox_item.setFlags(
                 checkbox_item.flags()
                 | Qt.ItemFlag.ItemIsUserCheckable
             )
-
             checkbox_item.setCheckState(
                 Qt.CheckState.Checked
                 if issue.auto_repair_possible
                 else Qt.CheckState.Unchecked
             )
-
             self.issue_table.setItem(
                 row,
                 0,
                 checkbox_item
             )
-          
-            # 1 Datensatz
             self.issue_table.setItem(
                 row,
                 1,
                 QTableWidgetItem(issue.record_id)
             )
-
-            # 2 Problemfall
             self.issue_table.setItem(
                 row,
                 2,
                 QTableWidgetItem(issue.description)
             )
-
-            # 3 Typ
             self.issue_table.setItem(
                 row,
                 3,
                 QTableWidgetItem(issue.issue_type)
             )
-
-            # 4 Reparierbar
             self.issue_table.setItem(
                 row,
                 4,
@@ -716,13 +765,12 @@ class MainWindow(QMainWindow):
                     "Ja" if issue.auto_repair_possible else "Nein"
                 )
             )
-            
+
         self.update_selected_count()
-        
         self.detail_view.clear()
-        
         self.issue_table.setSortingEnabled(True)
-        
+        self._analysis_display_done = True
+        self._finish_analysis_if_ready()
 
     def select_all_issues(self) -> None:
 

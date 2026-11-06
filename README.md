@@ -166,6 +166,12 @@ eine GEDCOM-Datei auswählen.
 
 Nach dem Öffnen wird die Analyse automatisch gestartet.
 
+Die Analyse läuft in einem Hintergrundthread, sodass das Fenster währenddessen
+reagiert. Die Statusleiste zeigt „Analyse läuft...“ und nach Abschluss eine
+Erfolg- oder Fehlermeldung. Eine Fortschrittsanzeige wird nicht verwendet.
+Währenddessen sind „Öffnen“ und „Analysieren“ deaktiviert, damit keine zweite
+Analyse parallel gestartet und die Eingabedatei nicht gewechselt wird.
+
 Die Anwendung liest GEDCOM-Dateien derzeit als UTF-8. Kann eine Datei nicht
 geöffnet oder gelesen werden oder ist sie nicht gültig UTF-8-kodiert, erscheint
 eine Fehlermeldung. Ergebnisse einer vorherigen Datei werden beim Start einer

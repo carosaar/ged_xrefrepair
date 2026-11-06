@@ -163,7 +163,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ged-xrefrepair"
-version = "0.1.0"
+version = "0.7.0"
 description = "GEDCOM Cross Reference Repair Assistant"
 readme = "README.md"
 requires-python = ">=3.12"

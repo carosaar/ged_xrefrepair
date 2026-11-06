@@ -1,17 +1,49 @@
 import os
+import time
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
+from PySide6.QtCore import QEventLoop, QTimer
 from PySide6.QtWidgets import QApplication, QMessageBox
 
+from ged_xrefrepair.analyzer.analysis_result import AnalysisResult
 from ged_xrefrepair.gui.main_window import MainWindow
+from ged_xrefrepair.model.issue import Issue
 from ged_xrefrepair.services.analysis_service import AnalysisService
 
 
 @pytest.fixture(scope="module")
 def application():
     return QApplication.instance() or QApplication([])
+
+
+def wait_for_analysis(window, timeout_ms=5000):
+    loop = QEventLoop()
+    poll_timer = QTimer()
+    poll_timer.setInterval(10)
+    poll_timer.timeout.connect(
+        lambda: loop.quit()
+        if not window._analysis_in_progress
+        else None
+    )
+    timeout_timer = QTimer()
+    timeout_timer.setSingleShot(True)
+    timeout_timer.timeout.connect(loop.quit)
+
+    if window._analysis_in_progress:
+        poll_timer.start()
+        timeout_timer.start(timeout_ms)
+        loop.exec()
+
+    poll_timer.stop()
+    timeout_timer.stop()
+    assert not window._analysis_in_progress, (
+        window._analysis_thread_done,
+        window._analysis_display_done,
+        window._issue_display_index,
+        window.issue_table.rowCount(),
+    )
 
 
 @pytest.mark.parametrize(
@@ -53,6 +85,7 @@ def test_analysis_error_clears_previous_results(
     )
 
     window.start_analysis()
+    wait_for_analysis(window)
 
     assert window.current_issues == []
     assert window.name_resolver is None
@@ -67,4 +100,49 @@ def test_analysis_error_clears_previous_results(
     assert not window.save_button.isEnabled()
     assert expected_message in messages[0][1]
     assert window.statusBar().currentMessage() == "Analyse fehlgeschlagen"
+    assert window.open_button.isEnabled()
+    assert window.analyze_button.isEnabled()
+    window.close()
+
+
+def test_analysis_runs_in_background_and_duplicate_start_is_ignored(
+    application,
+    monkeypatch,
+):
+    window = MainWindow()
+    window.gedcom_file = (
+        "tests/sample_data/missing_chil.ged"
+    )
+    calls = []
+    real_analyze = AnalysisService.analyze
+
+    def delayed_analysis(self, filename):
+        calls.append(filename)
+        time.sleep(1.2)
+        return real_analyze(self, filename)
+
+    monkeypatch.setattr(
+        AnalysisService,
+        "analyze",
+        delayed_analysis,
+    )
+
+    window.show()
+    application.processEvents()
+    window.start_analysis()
+    assert window.statusBar().currentMessage() == "Analyse läuft..."
+    assert not window.open_button.isEnabled()
+    assert not window.analyze_button.isEnabled()
+
+    window.start_analysis()
+    assert len(calls) <= 1
+
+    ui_timer_fired = []
+    QTimer.singleShot(20, lambda: ui_timer_fired.append(True))
+    wait_for_analysis(window)
+    assert ui_timer_fired
+    assert calls == [window.gedcom_file]
+    assert window.statusBar().currentMessage() == "Analyse abgeschlossen"
+    assert window.open_button.isEnabled()
+    assert window.analyze_button.isEnabled()
     window.close()

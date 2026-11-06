@@ -4,6 +4,31 @@ Alle wichtigen Änderungen an diesem Projekt werden in dieser Datei dokumentiert
 
 ---
 
+## [0.7.0] - Reaktionsfähige Analyse
+06.11.2026
+
+### Analyse im Hintergrund
+
+- Die GEDCOM-Analyse läuft in einem eigenen Qt-Arbeitsthread. Dadurch bleibt
+  das Hauptfenster während des Einlesens und Prüfens bedienbar.
+- Während der Analyse zeigt die Statusleiste „Analyse läuft...“ und danach
+  eine Abschluss- oder Fehlermeldung. Auf eine Fortschrittsanzeige wird
+  verzichtet.
+- „Öffnen“ und „Analysieren“ sind während einer laufenden Analyse deaktiviert.
+  Ein erneuter Analyseaufruf wird zusätzlich abgefangen, um parallele Läufe
+  auszuschließen.
+- Datei- und Decodierfehler werden weiterhin dem Benutzer gemeldet;
+  unerwartete Fehler werden protokolliert und angezeigt.
+- Das Schließen des Fensters während einer laufenden Analyse wird verhindert,
+  damit kein noch aktiver Hintergrundthread zurückbleibt.
+
+### Qualitätssicherung
+
+- GUI-Tests prüfen die Reaktionsfähigkeit der Ereignisschleife, den Schutz vor
+  einem doppelten Start, die Statusmeldungen und die Fehlerpfade.
+
+---
+
 ## [0.6.0b] - Analyse- und Reparaturregeln erweitert
 
 ### Neue Problemtypen
@@ -605,5 +630,3 @@ Dieser Meilenstein stellt einen ersten vollständigen vertikalen Schnitt durch d
 GEDCOM-Datei → Parser → Analyse-Service → GUI
 
 Damit wurde die technische Basis für alle weiteren Entwicklungen geschaffen.
-
-
