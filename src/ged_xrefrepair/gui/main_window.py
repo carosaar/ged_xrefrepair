@@ -481,11 +481,7 @@ class MainWindow(QMainWindow):
         self.issue_table.itemSelectionChanged.connect(
             self.show_issue_details
         )
-        
-        self.issue_table.currentCellChanged.connect(
-            self.show_issue_details
-        )
-        
+
     def select_file(self) -> None:
 
         last_file = self.settings.value(
@@ -852,16 +848,11 @@ class MainWindow(QMainWindow):
         *args
     ) -> None:
 
-        from html import escape
-
         row = self.issue_table.currentRow()
 
-        
         if row < 0:
             self.detail_view.clear()
             return
-        
-        row = self.issue_table.currentRow()
 
         item = self.issue_table.item(
             row,
