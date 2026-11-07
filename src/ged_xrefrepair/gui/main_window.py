@@ -34,11 +34,13 @@ from PySide6.QtWidgets import (
     QComboBox,
 )
 
+from ged_xrefrepair import __version__
 from ged_xrefrepair.analyzer.reference_analyzer import ReferenceAnalyzer
 from ged_xrefrepair.gui.analysis_worker import AnalysisWorker
 from ged_xrefrepair.gui.problem_overview_window import (
     ProblemOverviewWindow,
 )
+from ged_xrefrepair.gui.repair_log_window import RepairLogWindow
 from ged_xrefrepair.services.name_resolver import NameResolver
 from ged_xrefrepair.analyzer.analysis_result import AnalysisResult
 from ged_xrefrepair.services.repair_preview_service import (
@@ -47,6 +49,7 @@ from ged_xrefrepair.services.repair_preview_service import (
 from ged_xrefrepair.services.repair_service import RepairService
 from ged_xrefrepair.parser.gedcom_writer import GedcomWriter
 from ged_xrefrepair.model.issue import Issue, RepairStatus
+from ged_xrefrepair.services.repair_log_writer import RepairLogWriter
 
 
 class MainWindow(QMainWindow):
@@ -185,6 +188,8 @@ class MainWindow(QMainWindow):
         self._repair_ui_undo_stack: list[
             tuple[dict[tuple[str, str, str], Issue], bool]
         ] = []
+        self._repair_log_path: Path | None = None
+        self.repair_log_window: RepairLogWindow | None = None
         self._analysis_thread: QThread | None = None
         self._analysis_worker: AnalysisWorker | None = None
         self._analysis_in_progress = False
@@ -193,7 +198,7 @@ class MainWindow(QMainWindow):
         self._analysis_final_message = ""
         self.problem_overview_window: ProblemOverviewWindow | None = None
         
-        self.setWindowTitle("GED XRef Repair v.0.10.0")
+        self.setWindowTitle(f"GED XRef Repair v.{__version__}")
         self.resize(1400, 900)
 
         self._create_ui()
@@ -239,6 +244,7 @@ class MainWindow(QMainWindow):
         self.repair_button = QPushButton("🛠 Reparieren")
         self.undo_button = QPushButton("↶ Rückgängig")
         self.save_button = QPushButton("💾 Speichern...")
+        self.repair_log_button = QPushButton("📋 Protokoll")
         self.help_button = QPushButton("❓ HILFE")
         self.info_button = QPushButton("ℹ Info")
         self.exit_button = QPushButton("❌ Ende")
@@ -249,6 +255,7 @@ class MainWindow(QMainWindow):
             self.repair_button,
             self.undo_button,
             self.save_button,
+            self.repair_log_button,
             self.help_button,
             self.info_button,
             self.exit_button,
@@ -259,12 +266,14 @@ class MainWindow(QMainWindow):
         self.repair_button.setEnabled(False)
         self.undo_button.setEnabled(False)
         self.save_button.setEnabled(False)
+        self.repair_log_button.setEnabled(False)
 
         button_layout.addWidget(self.open_button)
         button_layout.addWidget(self.analyze_button)
         button_layout.addWidget(self.repair_button)
         button_layout.addWidget(self.undo_button)
         button_layout.addWidget(self.save_button)
+        button_layout.addWidget(self.repair_log_button)
 
         button_layout.addStretch()
 
@@ -633,6 +642,10 @@ class MainWindow(QMainWindow):
             self.save_repaired_file
         )
 
+        self.repair_log_button.clicked.connect(
+            self.show_repair_log
+        )
+
         # Wenn der "Ende"-Button geklickt wird, soll das Programm beendet werden
         self.exit_button.clicked.connect(
             self.close
@@ -715,6 +728,8 @@ class MainWindow(QMainWindow):
 
         self._repair_status_history.clear()
         self._repair_ui_undo_stack.clear()
+        self._repair_log_path = None
+        self.repair_log_button.setEnabled(False)
         self.gedcom_file = filename
 
         self.settings.setValue(
@@ -885,6 +900,8 @@ class MainWindow(QMainWindow):
 
         if self.problem_overview_window is not None:
             self.problem_overview_window.close()
+        if self.repair_log_window is not None:
+            self.repair_log_window.close()
 
         event.accept()
 
@@ -1255,6 +1272,31 @@ class MainWindow(QMainWindow):
             return
 
         self._remember_repair_statuses(actionable_issues)
+        if self.repair_service.last_changed_count and self.gedcom_file:
+            try:
+                self._repair_log_path = RepairLogWriter().append_run(
+                    self.gedcom_file,
+                    actionable_issues,
+                )
+                self.repair_log_button.setEnabled(
+                    self._repair_log_path is not None
+                )
+            except OSError as error:
+                existing_log = Path(
+                    f"{self.gedcom_file}.repair.log"
+                )
+                self._repair_log_path = (
+                    existing_log if existing_log.is_file() else None
+                )
+                self.repair_log_button.setEnabled(
+                    self._repair_log_path is not None
+                )
+                QMessageBox.warning(
+                    self,
+                    "Protokoll konnte nicht gespeichert werden",
+                    f"Die Reparaturen wurden durchgeführt, aber das "
+                    f"Protokoll konnte nicht geschrieben werden.\n\n{error}",
+                )
         if self.repair_service.last_changed_count:
             self._has_unsaved_repairs = True
         self._refresh_analysis_from_current_records()
@@ -1358,7 +1400,15 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(
                 f"Sicherung erstellt: {backup_path.name}"
             )
-            writer.write(self.current_records, str(output_path))
+            repair_count = sum(
+                issue.repair_status == "REPAIRED"
+                for issue in self._repair_status_history.values()
+            )
+            writer.write(
+                self.current_records,
+                str(output_path),
+                repair_count=repair_count,
+            )
         except (OSError, shutil.Error) as error:
             QMessageBox.critical(
                 self,
@@ -1391,6 +1441,29 @@ class MainWindow(QMainWindow):
                 "von GEDCOM-Referenzen."
             )
         )
+
+    def show_repair_log(self) -> None:
+        if self._repair_log_path is None:
+            return
+
+        try:
+            log_content = self._repair_log_path.read_text(encoding="utf-8")
+        except OSError as error:
+            QMessageBox.warning(
+                self,
+                "Protokoll kann nicht gelesen werden",
+                f"Das Reparaturprotokoll konnte nicht geöffnet werden.\n\n"
+                f"{error}",
+            )
+            return
+
+        if self.repair_log_window is None:
+            self.repair_log_window = RepairLogWindow(self, log_content)
+        else:
+            self.repair_log_window.text_edit.setPlainText(log_content)
+        self.repair_log_window.show()
+        self.repair_log_window.raise_()
+        self.repair_log_window.activateWindow()
 
     def show_problem_overview(self) -> None:
         if self.problem_overview_window is None:

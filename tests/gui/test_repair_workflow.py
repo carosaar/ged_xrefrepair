@@ -316,3 +316,104 @@ def test_declining_repair_confirmation_keeps_records_unchanged(
     assert issue.repair_status == "NOT_PROCESSED"
     assert not window.repair_service.can_undo
     window.close()
+
+
+def test_save_records_repaired_count_in_head(tmp_path, application, monkeypatch):
+    source_path = tmp_path / "source.ged"
+    output_path = tmp_path / "repaired.ged"
+    source_path.write_text("0 HEAD\n", encoding="utf-8")
+    window = MainWindow()
+    window.gedcom_file = str(source_path)
+    window.current_records = [
+        GedcomRecord("@HEAD@", "HEAD", ["0 HEAD"]),
+        GedcomRecord("@F1@", "FAM", ["0 @F1@ FAM"]),
+        GedcomRecord(
+            "@I1@",
+            "INDI",
+            ["0 @I1@ INDI", "1 FAMC @F1@"],
+        ),
+    ]
+    issue = Issue(
+        "MISSING_CHIL",
+        "Missing child link",
+        "@F1@",
+        "@I1@",
+        True,
+    )
+    monkeypatch.setattr(
+        QMessageBox,
+        "question",
+        lambda *args: QMessageBox.StandardButton.Yes,
+    )
+    monkeypatch.setattr(
+        QFileDialog,
+        "getSaveFileName",
+        lambda *args: (str(output_path), "GEDCOM Dateien (*.ged)"),
+    )
+
+    window.populate_issue_table([issue])
+    window.issue_table.item(0, 0).setCheckState(Qt.CheckState.Checked)
+    window.apply_selected_repairs()
+    window.save_repaired_file()
+
+    saved_lines = output_path.read_text(encoding="utf-8").splitlines()
+    assert (
+        "1 NOTE ged_XRefRepair 0.10.0: am "
+        in saved_lines[1]
+    )
+    assert saved_lines[1].endswith("1 Zeigerreparaturen durchgeführt")
+    assert "1 CHIL @I1@" in saved_lines
+    window.close()
+
+
+def test_repair_log_button_opens_read_only_log_window(
+    tmp_path,
+    application,
+    monkeypatch,
+):
+    gedcom_path = tmp_path / "Familie.ged"
+    gedcom_path.write_text("0 HEAD\n", encoding="utf-8")
+    window = MainWindow()
+    window.gedcom_file = str(gedcom_path)
+    window.current_records = [
+        GedcomRecord("@HEAD@", "HEAD", ["0 HEAD"]),
+        GedcomRecord("@F1@", "FAM", ["0 @F1@ FAM"]),
+        GedcomRecord(
+            "@I1@",
+            "INDI",
+            ["0 @I1@ INDI", "1 FAMC @F1@"],
+        ),
+    ]
+    issue = Issue(
+        "MISSING_CHIL",
+        "Missing child link",
+        "@F1@",
+        "@I1@",
+        True,
+    )
+    monkeypatch.setattr(
+        QMessageBox,
+        "question",
+        lambda *args: QMessageBox.StandardButton.Yes,
+    )
+    assert not window.repair_log_button.isEnabled()
+
+    window.populate_issue_table([issue])
+    window.issue_table.item(0, 0).setCheckState(Qt.CheckState.Checked)
+    window.apply_selected_repairs()
+
+    log_path = tmp_path / "Familie.ged.repair.log"
+    assert log_path.is_file()
+    assert window.repair_log_button.isEnabled()
+    window.repair_log_button.click()
+
+    assert window.repair_log_window is not None
+    assert window.repair_log_window.windowTitle() == "Reparaturprotokoll"
+    assert window.repair_log_window.text_edit.isReadOnly()
+    assert "Eingefügte Zeile: 1 CHIL @I1@" in (
+        window.repair_log_window.text_edit.toPlainText()
+    )
+    saved_log = log_path.read_text(encoding="utf-8")
+    window.undo_button.click()
+    assert log_path.read_text(encoding="utf-8") == saved_log
+    window.close()

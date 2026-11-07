@@ -2,6 +2,19 @@
 
 Alle wichtigen Änderungen an diesem Projekt werden in dieser Datei dokumentiert.
 
+## [0.10.1]
+
+- Beim Speichern wird im HEAD-Datensatz ein GEDCOM-NOTE-Eintrag mit Programm,
+  Version, Datum und der Zahl tatsächlich ausgeführter Zeigerreparaturen
+  ergänzt. Vorhandene NOTE-/CONT-Inhalte bleiben erhalten; weitere
+  Speichervorgänge fügen jeweils einen neuen Historieneintrag hinzu.
+- Tatsächlich durchgeführte Reparaturen werden laufweise in
+  `<datei>.repair.log` protokolliert. Das Protokoll enthält Version,
+  Zeitpunkt, Dateiname sowie die ausgeführten Aktionen und kann über den
+  schreibgeschützten GUI-Button „Protokoll“ eingesehen werden. Undo ändert
+  das Protokoll nicht; Läufe ohne erfolgreiche Reparaturen erzeugen keinen
+  Eintrag.
+
 ---
 ## [0.10.0] Reparatur und Speicherung
 
@@ -25,6 +38,7 @@ Alle wichtigen Änderungen an diesem Projekt werden in dieser Datei dokumentiert
 - Vor jeder Reparaturrunde bestätigt der Benutzer die Anzahl der markierten
   Probleme, die jetzt korrigiert werden. Die Abschlussmeldung weist auf den
   nächsten Schritt „Weiter mit Speichern“ hin.
+
 
 ## [0.9.0] Anwenderfreundliche Reparaturvorschau
 
