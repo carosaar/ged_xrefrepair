@@ -44,6 +44,120 @@ from ged_xrefrepair.services.repair_preview_service import (
 
 
 class MainWindow(QMainWindow):
+    ISSUE_EXPLANATIONS = {
+        "MISSING_CHIL": (
+            "Fehlender Kind-Verweis in der Familie",
+            (
+                "Die ausgewählte Person verweist über einen FAMC-Eintrag "
+                "auf diese Familie.",
+                "Im Familiendatensatz fehlt jedoch der zugehörige "
+                "CHIL-Eintrag, der die Person als Kind dieser Familie "
+                "aufführt.",
+                "Dadurch ist die Eltern-Kind-Beziehung nur in einer "
+                "Richtung definiert. Genealogische Programme können diese "
+                "Beziehung deshalb möglicherweise nicht vollständig "
+                "auswerten.",
+            ),
+        ),
+        "MISSING_FAMC": (
+            "Fehlender Familien-Verweis bei einer Person",
+            (
+                "Die Familie enthält diese Person als Kind (CHIL).",
+                "Im Personendatensatz fehlt jedoch der entsprechende "
+                "FAMC-Eintrag, der auf die Familie verweist.",
+                "Dadurch ist die Eltern-Kind-Beziehung nur in einer "
+                "Richtung definiert. Die Zuordnung zu den Eltern kann "
+                "deshalb unvollständig dargestellt werden.",
+            ),
+        ),
+        "MISSING_HUSB": (
+            "Fehlender Ehemann-Eintrag in der Familie",
+            (
+                "Eine Person verweist über einen FAMS-Eintrag auf diese "
+                "Familie.",
+                "Im Familiendatensatz fehlt jedoch der zugehörige "
+                "HUSB-Eintrag.",
+                "Dadurch ist die Ehe- bzw. Partnerschaftsbeziehung nicht "
+                "vollständig definiert. Die Familie kennt den Ehemann "
+                "nicht, obwohl die Person auf die Familie verweist.",
+            ),
+        ),
+        "MISSING_WIFE": (
+            "Fehlender Ehefrau-Eintrag in der Familie",
+            (
+                "Eine Person verweist über einen FAMS-Eintrag auf diese "
+                "Familie.",
+                "Im Familiendatensatz fehlt jedoch der zugehörige "
+                "WIFE-Eintrag.",
+                "Dadurch ist die Ehe- bzw. Partnerschaftsbeziehung nicht "
+                "vollständig definiert. Die Familie kennt die Ehefrau "
+                "nicht, obwohl die Person auf die Familie verweist.",
+            ),
+        ),
+        "MISSING_FAMS_HUSB": (
+            "Fehlender Familien-Verweis beim Ehemann",
+            (
+                "Die Familie enthält diese Person als HUSB.",
+                "Im Personendatensatz fehlt jedoch der entsprechende "
+                "FAMS-Eintrag, der auf die Familie verweist.",
+                "Dadurch ist die Partnerschaftsbeziehung nur in einer "
+                "Richtung erfasst. Einige Genealogieprogramme können die "
+                "Zugehörigkeit zur Familie deshalb nicht vollständig "
+                "darstellen.",
+            ),
+        ),
+        "MISSING_FAMS_WIFE": (
+            "Fehlender Familien-Verweis bei der Ehefrau",
+            (
+                "Die Familie enthält diese Person als WIFE.",
+                "Im Personendatensatz fehlt jedoch der entsprechende "
+                "FAMS-Eintrag, der auf die Familie verweist.",
+                "Dadurch ist die Partnerschaftsbeziehung nur in einer "
+                "Richtung erfasst. Einige Genealogieprogramme können die "
+                "Zugehörigkeit zur Familie deshalb nicht vollständig "
+                "darstellen.",
+            ),
+        ),
+        "MISSING_PERSON": (
+            "Verweis auf eine nicht vorhandene Person",
+            (
+                "Ein Familiendatensatz verweist auf eine Person, die in "
+                "der GEDCOM-Datei nicht existiert.",
+                "Der betreffende Verweis kann daher nicht aufgelöst "
+                "werden.",
+                "Mögliche Ursachen sind ein gelöschter Personendatensatz, "
+                "eine falsche XRef-ID oder eine beschädigte GEDCOM-Datei.",
+                "Eine automatische Reparatur ist nicht möglich, da nicht "
+                "eindeutig bestimmt werden kann, auf welche Person "
+                "verwiesen werden sollte.",
+            ),
+        ),
+        "MISSING_FAMILY": (
+            "Verweis auf eine nicht vorhandene Familie",
+            (
+                "Ein Personen- oder Familiendatensatz verweist auf eine "
+                "Familie, die in der GEDCOM-Datei nicht existiert.",
+                "Der betreffende Verweis kann daher nicht aufgelöst "
+                "werden.",
+                "Mögliche Ursachen sind ein gelöschter Familiendatensatz, "
+                "eine falsche XRef-ID oder eine beschädigte GEDCOM-Datei.",
+                "Eine automatische Reparatur ist nicht möglich, da nicht "
+                "eindeutig bestimmt werden kann, welche Familie gemeint "
+                "war.",
+            ),
+        ),
+    }
+
+    ISSUE_RECORD_ORDER = {
+        "MISSING_CHIL": (("Person", "related"), ("Familie", "record")),
+        "MISSING_FAMC": (("Person", "record"), ("Familie", "related")),
+        "MISSING_HUSB": (("Person", "related"), ("Familie", "record")),
+        "MISSING_WIFE": (("Person", "related"), ("Familie", "record")),
+        "MISSING_FAMS_HUSB": (("Person", "record"), ("Familie", "related")),
+        "MISSING_FAMS_WIFE": (("Person", "record"), ("Familie", "related")),
+        "MISSING_PERSON": (("Familie", "record"), ("Person", "related")),
+        "MISSING_FAMILY": (("Datensatz", "record"), ("Familie", "related")),
+    }
 
     def __init__(self) -> None:
         super().__init__()
@@ -64,7 +178,7 @@ class MainWindow(QMainWindow):
         self._analysis_final_message = ""
         self.problem_overview_window: ProblemOverviewWindow | None = None
         
-        self.setWindowTitle("GED XRef Repair v.0.8.0")
+        self.setWindowTitle("GED XRef Repair v.0.9.0")
         self.resize(1400, 900)
 
         self._create_ui()
@@ -1006,87 +1120,87 @@ class MainWindow(QMainWindow):
         issue = item.data(
             Qt.ItemDataRole.UserRole
         )
-        
-#       Preview der Reparaturaktion erstellen, falls möglich
+
         preview_service = RepairPreviewService()
+        repair_action = preview_service.create_action(issue)
 
-        repair_action = (
-            preview_service.create_action(
-                issue
+        def resolved_record(label: str, xref: str) -> str:
+            resolved_name = self.name_resolver.resolve(xref)
+            if resolved_name == xref:
+                record_kind = (
+                    "Person"
+                    if xref.startswith("@I")
+                    else "Familie"
+                    if xref.startswith("@F")
+                    else "Datensatz"
+                )
+                resolved_name = f"{record_kind} nicht vorhanden"
+
+            name_html = escape(resolved_name).replace("\n", "<br>")
+            return (
+                f"<p><b>{escape(label)}:</b><br>"
+                f"{name_html}<br>"
+                f"Datensatz: <code>{escape(xref)}</code></p>"
             )
+
+        affected_records = []
+        for label, source in self.ISSUE_RECORD_ORDER.get(
+            issue.issue_type,
+            (("Datensatz", "record"), ("Korrespondierender Datensatz", "related")),
+        ):
+            xref = (
+                issue.record_id
+                if source == "record"
+                else issue.related_xref
+            )
+            affected_records.append(resolved_record(label, xref))
+
+        title, explanations = self.ISSUE_EXPLANATIONS.get(
+            issue.issue_type,
+            ("Unbekannter Problemtyp", (issue.description,)),
+        )
+        explanation_html = "".join(
+            f"<p>{escape(paragraph)}</p>"
+            for paragraph in explanations
         )
 
-        record_name = self.name_resolver.resolve(
-            issue.record_id
-        )
-
-        related_name = self.name_resolver.resolve(
-            issue.related_xref
-        )
-        
-        record_name_html = (
-            escape(record_name)
-            .replace("\n", "<br>")
-        )
-
-        related_name_html = (
-            escape(related_name)
-            .replace("\n", "<br>")
-        )
-
-        repair_html = ""
-        if repair_action:
-
-            repair_html = f"""
-            <h1>Reparatur (Vorschlag)</h1>
-
-            <p>
-                <h2>Aktion: {escape(repair_action.description)}</h2>
-            </p>
-
-            <p>
-                <h2>In Zieldatensatz:</h2>
-                <b>{escape(repair_action.target_record)}</b>
-                        
-                <h2>wird eingefügt:</h2>
-                <b><code>{escape(repair_action.new_line)}</code></b>
-            </p>
+        if repair_action is not None:
+            target_html = resolved_record(
+                "Zieldatensatz",
+                repair_action.target_record,
+            )
+            solution_html = f"""
+            <h2>Vorgeschlagene Lösung</h2>
+            <p>Es wird ein fehlender Gegenverweis ergänzt.</p>
+            {target_html}
+            <p>Einzufügende Zeile:</p>
+            <p><code>{escape(repair_action.new_line)}</code></p>
             """
-            
+        else:
+            solution_html = """
+            <h2>Lösung</h2>
+            <p>Für diesen Fehler ist keine automatische Reparatur möglich.</p>
+            <p>Bitte prüfen Sie die Quelldaten und die referenzierten
+            Datensätze manuell.</p>
+            """
+
         html = f"""
         <html>
         <body style="font-family:'Segoe UI';">
-
-        <div>
-            <h1>Problem: {escape(issue.issue_type)}</h1>
-        </div>
-
-        <h2>Problemdatensatz</h2>
-
-        <p style="margin-bottom:4px;">
-            {escape(issue.record_id)}
-        </p>
-
-        <p style="margin-top:0px; margin-left:20px;">
-            <b>{record_name_html}</b>
-        </p>
-
-        <h2>Korrespondierender Datensatz</h2>
-
-        <p style="margin-bottom:4px;">
-            {escape(issue.related_xref)}
-        </p>
-
-        <p style="margin-top:0px; margin-left:20px;">
-            <b>{related_name_html}</b>
-        </p>
-        
-        {repair_html}
+        <h2>Betroffene Datensätze</h2>
+        {"".join(affected_records)}
+        <hr>
+        <h1>{escape(title)}<br>
+        <small>({escape(issue.issue_type)})</small></h1>
+        <h2>Fehlerbeschreibung</h2>
+        {explanation_html}
+        <hr>
+        {solution_html}
         </body>
         </html>
         """
 
-        self.detail_view.setHtml(html)    
+        self.detail_view.setHtml(html)
 
         self.issue_table.scrollToItem(
             item,

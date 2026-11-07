@@ -4,6 +4,21 @@ Alle wichtigen Änderungen an diesem Projekt werden in dieser Datei dokumentiert
 
 ---
 
+## [0.9.0] Anwenderfreundliche Reparaturvorschau
+
+### Problemdetails
+
+- Die Detailansicht zeigt betroffene Personen und Familien zuerst mit
+  aufgelösten Namen sowie Geburts-, Sterbe- und Heiratsdaten an. Die
+  technischen XRefs bleiben ergänzend sichtbar.
+- Die Fehler werden mit verständlichen Beschreibungen und weiterhin sichtbarer
+  interner Fehlerkennung erläutert.
+- Für unterstützte Fälle werden der Zieldatensatz und die einzufügende
+  GEDCOM-Zeile als Lösungsvorschlag angezeigt. Für nicht automatisch
+  reparierbare Fälle erscheint ein Hinweis zur manuellen Prüfung.
+
+---
+
 ## [0.8.0] Optimierungen und Logik-Änderungen
 
 ### FAMC-Auswertung
