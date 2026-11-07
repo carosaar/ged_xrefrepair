@@ -3,6 +3,28 @@
 Alle wichtigen Änderungen an diesem Projekt werden in dieser Datei dokumentiert.
 
 ---
+## [0.10.0] Reparatur und Speicherung
+
+- Ausgewählte, als automatisch reparierbar markierte FAMC-, CHIL-, HUSB-,
+  WIFE- und FAMS-Gegenverweise können im Arbeitsspeicher ergänzt werden.
+- Bereits vorhandene Zeilen werden nicht dupliziert; wiederholte Reparaturen
+  sind idempotent.
+- Reparaturrunden können über einen Undo-Stack vollständig rückgängig gemacht
+  werden.
+- Geänderte Datensätze können in eine separate GEDCOM-Datei geschrieben
+  werden. Vor dem Speichern wird die zuletzt geladene Originaldatei als
+  `<datei>.bak` gesichert; sie wird durch den Speichervorgang nicht
+  überschrieben.
+- Die Problemliste kennzeichnet Reparaturergebnisse mit ✅, ⚠ oder ❌.
+  Erfolgreich bearbeitete Probleme bleiben nach der automatischen Neuanalyse
+  sichtbar; die Statusleiste fasst Erfolge, übersprungene Einträge und Fehler
+  je Reparaturrunde zusammen.
+- Die Detailansicht erläutert, ob ein Eintrag repariert, bereits vorhanden
+  oder fehlgeschlagen ist. Reparaturstatus werden zusammen mit den Datensätzen
+  durch Undo zurückgesetzt.
+- Vor jeder Reparaturrunde bestätigt der Benutzer die Anzahl der markierten
+  Probleme, die jetzt korrigiert werden. Die Abschlussmeldung weist auf den
+  nächsten Schritt „Weiter mit Speichern“ hin.
 
 ## [0.9.0] Anwenderfreundliche Reparaturvorschau
 
@@ -16,6 +38,7 @@ Alle wichtigen Änderungen an diesem Projekt werden in dieser Datei dokumentiert
 - Für unterstützte Fälle werden der Zieldatensatz und die einzufügende
   GEDCOM-Zeile als Lösungsvorschlag angezeigt. Für nicht automatisch
   reparierbare Fälle erscheint ein Hinweis zur manuellen Prüfung.
+
 
 ---
 

@@ -1,7 +1,9 @@
 # src/ged_xrefrepair/gui/main_window.py
 
-from pathlib import Path
+from copy import deepcopy
 from html import escape
+from pathlib import Path
+import shutil
 
 from PySide6.QtCore import (
     Qt,
@@ -32,6 +34,7 @@ from PySide6.QtWidgets import (
     QComboBox,
 )
 
+from ged_xrefrepair.analyzer.reference_analyzer import ReferenceAnalyzer
 from ged_xrefrepair.gui.analysis_worker import AnalysisWorker
 from ged_xrefrepair.gui.problem_overview_window import (
     ProblemOverviewWindow,
@@ -41,6 +44,9 @@ from ged_xrefrepair.analyzer.analysis_result import AnalysisResult
 from ged_xrefrepair.services.repair_preview_service import (
     RepairPreviewService
 )
+from ged_xrefrepair.services.repair_service import RepairService
+from ged_xrefrepair.parser.gedcom_writer import GedcomWriter
+from ged_xrefrepair.model.issue import Issue, RepairStatus
 
 
 class MainWindow(QMainWindow):
@@ -169,7 +175,16 @@ class MainWindow(QMainWindow):
         
         self.gedcom_file = None
         self.current_issues = []
+        self.current_records = []
         self.name_resolver = None
+        self._has_unsaved_repairs = False
+        self.repair_service = RepairService()
+        self._repair_status_history: dict[
+            tuple[str, str, str], Issue
+        ] = {}
+        self._repair_ui_undo_stack: list[
+            tuple[dict[tuple[str, str, str], Issue], bool]
+        ] = []
         self._analysis_thread: QThread | None = None
         self._analysis_worker: AnalysisWorker | None = None
         self._analysis_in_progress = False
@@ -178,7 +193,7 @@ class MainWindow(QMainWindow):
         self._analysis_final_message = ""
         self.problem_overview_window: ProblemOverviewWindow | None = None
         
-        self.setWindowTitle("GED XRef Repair v.0.9.0")
+        self.setWindowTitle("GED XRef Repair v.0.10.0")
         self.resize(1400, 900)
 
         self._create_ui()
@@ -222,6 +237,7 @@ class MainWindow(QMainWindow):
         self.open_button = QPushButton("📂 Öffnen")
         self.analyze_button = QPushButton("🔍 Analysieren")
         self.repair_button = QPushButton("🛠 Reparieren")
+        self.undo_button = QPushButton("↶ Rückgängig")
         self.save_button = QPushButton("💾 Speichern...")
         self.help_button = QPushButton("❓ HILFE")
         self.info_button = QPushButton("ℹ Info")
@@ -231,6 +247,7 @@ class MainWindow(QMainWindow):
             self.open_button,
             self.analyze_button,
             self.repair_button,
+            self.undo_button,
             self.save_button,
             self.help_button,
             self.info_button,
@@ -240,11 +257,13 @@ class MainWindow(QMainWindow):
 
         self.analyze_button.setEnabled(False)
         self.repair_button.setEnabled(False)
+        self.undo_button.setEnabled(False)
         self.save_button.setEnabled(False)
 
         button_layout.addWidget(self.open_button)
         button_layout.addWidget(self.analyze_button)
         button_layout.addWidget(self.repair_button)
+        button_layout.addWidget(self.undo_button)
         button_layout.addWidget(self.save_button)
 
         button_layout.addStretch()
@@ -419,7 +438,7 @@ class MainWindow(QMainWindow):
 
         self.issue_table = QTableWidget()
 
-        self.issue_table.setColumnCount(5)
+        self.issue_table.setColumnCount(6)
         
         self.issue_table.setSortingEnabled(True)
 
@@ -430,6 +449,7 @@ class MainWindow(QMainWindow):
                 "Problemfall",
                 "Typ",
                 "Reparierbar",
+                "Status",
             ]
         )
         
@@ -438,6 +458,7 @@ class MainWindow(QMainWindow):
         self.issue_table.setColumnWidth(2, 300)  # Problemfall
         self.issue_table.setColumnWidth(3, 120)  # Typ
         self.issue_table.setColumnWidth(4, 100)  # Reparierbar
+        self.issue_table.setColumnWidth(5, 65)   # Status
 
         self.issue_table.setAlternatingRowColors(True)
 
@@ -476,6 +497,11 @@ class MainWindow(QMainWindow):
 
         header.setSectionResizeMode(
             3,
+            QHeaderView.ResizeMode.ResizeToContents
+        )
+
+        header.setSectionResizeMode(
+            5,
             QHeaderView.ResizeMode.ResizeToContents
         )
 
@@ -595,6 +621,18 @@ class MainWindow(QMainWindow):
             self.show_problem_overview
         )
 
+        self.repair_button.clicked.connect(
+            self.apply_selected_repairs
+        )
+
+        self.undo_button.clicked.connect(
+            self.undo_last_repair
+        )
+
+        self.save_button.clicked.connect(
+            self.save_repaired_file
+        )
+
         # Wenn der "Ende"-Button geklickt wird, soll das Programm beendet werden
         self.exit_button.clicked.connect(
             self.close
@@ -675,6 +713,8 @@ class MainWindow(QMainWindow):
         if not filename:
             return
 
+        self._repair_status_history.clear()
+        self._repair_ui_undo_stack.clear()
         self.gedcom_file = filename
 
         self.settings.setValue(
@@ -750,7 +790,10 @@ class MainWindow(QMainWindow):
         result: AnalysisResult,
     ) -> None:
         # Aktuelle Probleme speichern
-        self.current_issues = result.issues
+        self.current_issues = self._merge_repair_statuses(result.issues)
+        self.current_records = result.record_list
+        self._has_unsaved_repairs = False
+        self.repair_service.clear_undo()
         
         # NameResolver initialisieren, um die XRef-IDs in lesbare Namen aufzulösen
         self.name_resolver = NameResolver(
@@ -778,7 +821,7 @@ class MainWindow(QMainWindow):
         )
 
         self._analysis_final_message = "Analyse abgeschlossen"
-        self._start_issue_table_population(result.issues)
+        self._start_issue_table_population(self.current_issues)
 
     def _on_analysis_failed(self, error: Exception) -> None:
         self._analysis_final_message = "Analyse fehlgeschlagen"
@@ -847,7 +890,11 @@ class MainWindow(QMainWindow):
 
     def _clear_analysis_results(self) -> None:
         self.current_issues = []
+        self.current_records = []
         self.name_resolver = None
+        self._has_unsaved_repairs = False
+        self.repair_service.clear_undo()
+        self._repair_ui_undo_stack.clear()
 
         self.persons_value.setText("-")
         self.families_value.setText("-")
@@ -862,6 +909,7 @@ class MainWindow(QMainWindow):
         self.selected_count_label.setText("Ausgewählt: 0")
 
         self.repair_button.setEnabled(False)
+        self.undo_button.setEnabled(False)
         self.save_button.setEnabled(False)
 
     def populate_issue_table(
@@ -869,6 +917,63 @@ class MainWindow(QMainWindow):
         issues
     ) -> None:
         self._start_issue_table_population(issues)
+
+    @staticmethod
+    def _issue_status_key(issue: Issue) -> tuple[str, str, str]:
+        return (issue.issue_type, issue.record_id, issue.related_xref)
+
+    @staticmethod
+    def _repair_status_symbol(issue: Issue) -> str:
+        if not issue.auto_repair_possible:
+            return "—"
+        symbols: dict[RepairStatus, str] = {
+            "NOT_PROCESSED": "",
+            "REPAIRED": "✅",
+            "SKIPPED": "⚠",
+            "FAILED": "❌",
+        }
+        return symbols[issue.repair_status]
+
+    @staticmethod
+    def _repair_status_tooltip(issue: Issue) -> str:
+        if not issue.auto_repair_possible:
+            return "Keine automatische Reparatur möglich"
+        tooltips: dict[RepairStatus, str] = {
+            "NOT_PROCESSED": "Noch nicht bearbeitet",
+            "REPAIRED": "Reparatur erfolgreich durchgeführt",
+            "SKIPPED": "Keine Änderung erforderlich",
+            "FAILED": "Reparaturversuch fehlgeschlagen",
+        }
+        return tooltips[issue.repair_status]
+
+    def _remember_repair_statuses(self, issues: list[Issue]) -> None:
+        for issue in issues:
+            self._repair_status_history[self._issue_status_key(issue)] = (
+                deepcopy(issue)
+            )
+
+    def _merge_repair_statuses(self, issues: list[Issue]) -> list[Issue]:
+        displayed_issues = list(issues)
+        current_keys = {
+            self._issue_status_key(issue)
+            for issue in displayed_issues
+        }
+
+        for issue in displayed_issues:
+            previous = self._repair_status_history.get(
+                self._issue_status_key(issue)
+            )
+            if previous is not None:
+                issue.repair_status = previous.repair_status
+
+        for key, previous in self._repair_status_history.items():
+            if (
+                key not in current_keys
+                and previous.repair_status != "NOT_PROCESSED"
+            ):
+                displayed_issues.append(deepcopy(previous))
+
+        return displayed_issues
 
     def _start_issue_table_population(self, issues) -> None:
         issue_types = sorted({issue.issue_type for issue in issues})
@@ -890,7 +995,12 @@ class MainWindow(QMainWindow):
             )
             checkbox_item.setFlags(
                 checkbox_item.flags()
-                | Qt.ItemFlag.ItemIsUserCheckable
+                | (
+                    Qt.ItemFlag.ItemIsUserCheckable
+                    if issue.repair_status
+                    not in ("REPAIRED", "SKIPPED")
+                    else Qt.ItemFlag(0)
+                )
             )
             checkbox_item.setCheckState(Qt.CheckState.Unchecked)
             self.issue_table.setItem(
@@ -920,6 +1030,12 @@ class MainWindow(QMainWindow):
                     "Ja" if issue.auto_repair_possible else "Nein"
                 )
             )
+            status_item = QTableWidgetItem(
+                self._repair_status_symbol(issue)
+            )
+            status_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            status_item.setToolTip(self._repair_status_tooltip(issue))
+            self.issue_table.setItem(row, 5, status_item)
 
         self.update_selected_count()
         self.apply_issue_filters()
@@ -943,6 +1059,8 @@ class MainWindow(QMainWindow):
             )
 
             if item is not None:
+                if not item.flags() & Qt.ItemFlag.ItemIsUserCheckable:
+                    continue
 
                 item.setCheckState(
                     Qt.CheckState.Checked
@@ -965,6 +1083,8 @@ class MainWindow(QMainWindow):
             )
 
             if item is not None:
+                if not item.flags() & Qt.ItemFlag.ItemIsUserCheckable:
+                    continue
 
                 item.setCheckState(
                     Qt.CheckState.Unchecked
@@ -989,6 +1109,8 @@ class MainWindow(QMainWindow):
             )
 
             if item is None:
+                continue
+            if not item.flags() & Qt.ItemFlag.ItemIsUserCheckable:
                 continue
 
             if (
@@ -1045,6 +1167,7 @@ class MainWindow(QMainWindow):
     def update_selected_count(self) -> None:
 
         selected = 0
+        selected_repairable = False
 
         for row in range(
             self.issue_table.rowCount()
@@ -1061,10 +1184,193 @@ class MainWindow(QMainWindow):
                 == Qt.CheckState.Checked
             ):
                 selected += 1
+                issue = item.data(Qt.ItemDataRole.UserRole)
+                if (
+                    issue is not None
+                    and issue.auto_repair_possible
+                    and issue.repair_status not in ("REPAIRED", "SKIPPED")
+                ):
+                    selected_repairable = True
 
         self.selected_count_label.setText(
             f"Ausgewählt: {selected}"
-        )        
+        )
+        self.repair_button.setEnabled(
+            bool(self.current_records) and selected_repairable
+        )
+        self.undo_button.setEnabled(self.repair_service.can_undo)
+        self.save_button.setEnabled(self._has_unsaved_repairs)
+
+    def apply_selected_repairs(self) -> None:
+        selected_issues = []
+        for row in range(self.issue_table.rowCount()):
+            item = self.issue_table.item(row, 0)
+            if (
+                item is not None
+                and item.checkState() == Qt.CheckState.Checked
+            ):
+                issue = item.data(Qt.ItemDataRole.UserRole)
+                if issue is not None:
+                    selected_issues.append(issue)
+
+        actionable_issues = [
+            issue
+            for issue in selected_issues
+            if issue.auto_repair_possible
+            and issue.repair_status not in ("REPAIRED", "SKIPPED")
+        ]
+        if not actionable_issues:
+            return
+
+        confirmation = QMessageBox.question(
+            self,
+            "Reparatur bestätigen",
+            (
+                f"{len(actionable_issues)} "
+                f"{'Problem wird' if len(actionable_issues) == 1 else 'Probleme werden'} "
+                "jetzt korrigiert. Möchten Sie fortfahren?"
+            ),
+            QMessageBox.StandardButton.Yes
+            | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if confirmation != QMessageBox.StandardButton.Yes:
+            return
+
+        self._repair_ui_undo_stack.append(
+            (deepcopy(self._repair_status_history), self._has_unsaved_repairs)
+        )
+        try:
+            self.current_records = self.repair_service.apply_selected(
+                self.current_records,
+                actionable_issues,
+            )
+        except Exception as error:
+            self._repair_ui_undo_stack.pop()
+            QMessageBox.critical(
+                self,
+                "Reparatur fehlgeschlagen",
+                str(error),
+            )
+            return
+
+        self._remember_repair_statuses(actionable_issues)
+        if self.repair_service.last_changed_count:
+            self._has_unsaved_repairs = True
+        self._refresh_analysis_from_current_records()
+        self.statusBar().showMessage(
+            "Reparatur abgeschlossen: "
+            f"{self.repair_service.last_changed_count} "
+            f"{'Reparatur' if self.repair_service.last_changed_count == 1 else 'Reparaturen'} "
+            "durchgeführt, "
+            f"{self.repair_service.last_skipped_count} "
+            f"{'Reparatur' if self.repair_service.last_skipped_count == 1 else 'Reparaturen'} "
+            "übersprungen, "
+            f"{self.repair_service.last_failed_count} "
+            f"{'Fehler' if self.repair_service.last_failed_count != 1 else 'Fehler'}"
+            ". Weiter mit Speichern"
+        )
+
+    def undo_last_repair(self) -> None:
+        if not self.repair_service.can_undo:
+            return
+
+        self.current_records = self.repair_service.undo(
+            self.current_records
+        )
+        if self._repair_ui_undo_stack:
+            (
+                self._repair_status_history,
+                self._has_unsaved_repairs,
+            ) = self._repair_ui_undo_stack.pop()
+        self._refresh_analysis_from_current_records()
+        self.statusBar().showMessage("Änderungen rückgängig gemacht")
+
+    def _refresh_analysis_from_current_records(self) -> None:
+        issues = ReferenceAnalyzer().analyze(self.current_records)
+        individuals = sum(
+            record.tag == "INDI"
+            for record in self.current_records
+        )
+        families = sum(
+            record.tag == "FAM"
+            for record in self.current_records
+        )
+        self.current_issues = self._merge_repair_statuses(issues)
+        self.name_resolver = NameResolver(self.current_records)
+        self.persons_value.setText(str(individuals))
+        self.families_value.setText(str(families))
+        self.records_value.setText(str(len(self.current_records)))
+        self.issues_value.setText(str(len(issues)))
+        self._start_issue_table_population(self.current_issues)
+
+    def save_repaired_file(self) -> None:
+        if not self._has_unsaved_repairs or not self.gedcom_file:
+            return
+
+        source_path = Path(self.gedcom_file)
+        default_path = source_path.with_name(
+            f"{source_path.stem}_repaired{source_path.suffix}"
+        )
+        filename, _ = QFileDialog.getSaveFileName(
+            self,
+            "Reparierte GEDCOM-Datei speichern",
+            str(default_path),
+            "GEDCOM Dateien (*.ged *.gedcom)",
+        )
+        if not filename:
+            return
+
+        output_path = Path(filename).resolve()
+        backup_path = Path(f"{source_path}.bak").resolve()
+        if output_path == source_path.resolve():
+            QMessageBox.warning(
+                self,
+                "Originaldatei schützen",
+                "Die Originaldatei wird nicht überschrieben. "
+                "Bitte wählen Sie einen anderen Dateinamen.",
+            )
+            return
+        if output_path == backup_path:
+            QMessageBox.warning(
+                self,
+                "Sicherung schützen",
+                "Der ausgewählte Dateiname ist für die automatische "
+                "Sicherung reserviert. Bitte wählen Sie einen anderen Namen.",
+            )
+            return
+        if output_path.exists():
+            overwrite = QMessageBox.question(
+                self,
+                "Datei überschreiben?",
+                f"Die Datei {output_path.name} existiert bereits. "
+                "Soll sie ersetzt werden?",
+                QMessageBox.StandardButton.Yes
+                | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            if overwrite != QMessageBox.StandardButton.Yes:
+                return
+
+        writer = GedcomWriter()
+        try:
+            backup_path = writer.create_backup(source_path)
+            self.statusBar().showMessage(
+                f"Sicherung erstellt: {backup_path.name}"
+            )
+            writer.write(self.current_records, str(output_path))
+        except (OSError, shutil.Error) as error:
+            QMessageBox.critical(
+                self,
+                "Speichern fehlgeschlagen",
+                f"Die reparierte Datei konnte nicht gespeichert werden.\n\n"
+                f"{error}",
+            )
+            return
+
+        self._has_unsaved_repairs = False
+        self.save_button.setEnabled(False)
+        self.statusBar().showMessage("Datei gespeichert")
         
     def on_issue_item_changed(
         self,
@@ -1164,7 +1470,37 @@ class MainWindow(QMainWindow):
             for paragraph in explanations
         )
 
-        if repair_action is not None:
+        if issue.repair_status == "REPAIRED":
+            target_html = (
+                resolved_record("Zieldatensatz", repair_action.target_record)
+                if repair_action is not None
+                else ""
+            )
+            line_html = (
+                f"<p>Einzufügende Zeile:</p>"
+                f"<p><code>{escape(repair_action.new_line)}</code></p>"
+                if repair_action is not None
+                else ""
+            )
+            solution_html = f"""
+            <h2>✅ Reparatur durchgeführt</h2>
+            <p>Es wurde ein fehlender Gegenverweis ergänzt.</p>
+            {target_html}
+            {line_html}
+            """
+        elif issue.repair_status == "SKIPPED":
+            solution_html = """
+            <h2>⚠ Keine Änderung erforderlich</h2>
+            <p>Der vorgeschlagene Eintrag war bereits vorhanden.</p>
+            <p>Die Daten waren bereits konsistent.</p>
+            """
+        elif issue.repair_status == "FAILED":
+            solution_html = """
+            <h2>❌ Reparatur fehlgeschlagen</h2>
+            <p>Die Änderung konnte nicht durchgeführt werden.</p>
+            <p>Bitte prüfen Sie die Daten manuell.</p>
+            """
+        elif repair_action is not None:
             target_html = resolved_record(
                 "Zieldatensatz",
                 repair_action.target_record,

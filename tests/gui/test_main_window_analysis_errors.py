@@ -98,6 +98,7 @@ def test_analysis_error_clears_previous_results(
     assert window.detail_view.toPlainText() == ""
     assert window.selected_count_label.text() == "Ausgewählt: 0"
     assert not window.repair_button.isEnabled()
+    assert not window.undo_button.isEnabled()
     assert not window.save_button.isEnabled()
     assert expected_message in messages[0][1]
     assert window.statusBar().currentMessage() == "Analyse fehlgeschlagen"

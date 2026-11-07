@@ -471,6 +471,10 @@ WIFE-Kandidaten werden als nicht automatisch reparierbare `MISSING_HUSB`- bzw.
 `MISSING_WIFE`-Befunde angezeigt; dafür gibt es keine separaten Problemtypen.
 
 Die Einstufung „automatisch reparierbar“ beschreibt, ob die fehlende Referenz
-aus Sicht der Analyse eindeutig ergänzt werden könnte. Sie bedeutet nicht, dass
-die Anwendung die GEDCOM-Datei bereits automatisch ändert. Prüfen Sie alle
-Befunde anhand Ihrer Quelldaten.
+aus Sicht der Analyse eindeutig ergänzt werden kann. Nur ausgewählte Befunde
+mit dieser Einstufung werden im Arbeitsspeicher repariert. Die Originaldatei
+wird nicht überschrieben; geänderte Datensätze können in eine separate
+GEDCOM-Datei gespeichert werden. Jede Reparaturrunde kann vollständig
+rückgängig gemacht werden. Vor dem Speichern wird eine Sicherungskopie der
+geladenen Originaldatei mit der Endung `.bak` erstellt und eine vorhandene
+Sicherung überschrieben. Prüfen Sie alle Befunde anhand Ihrer Quelldaten.

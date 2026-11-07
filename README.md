@@ -1,8 +1,9 @@
 # GED XRef Repair
 
-GED XRef Repair ist ein Desktop-Werkzeug zur Analyse genealogischer GEDCOM-Dateien.
+GED XRef Repair ist ein Desktop-Werkzeug zur Analyse und selektiven Reparatur genealogischer GEDCOM-Dateien.
 
-Ziel des Projekts ist das Erkennen und spätere automatische Reparieren inkonsistenter Referenzen zwischen Personen- und Familiendatensätzen.
+Ziel des Projekts ist das Erkennen und selektive Reparieren inkonsistenter
+Referenzen zwischen Personen- und Familiendatensätzen.
 
 Die Anwendung richtet sich an Familienforscher, Genealogen und Entwickler von GEDCOM-Werkzeugen, die die Konsistenz genealogischer Beziehungen überprüfen möchten.
 
@@ -154,7 +155,20 @@ Beispiele:
 erkannten Problemtypen und ihren Bedingungen für eine eindeutige Lösung
 geöffnet. Das Fenster kann neben dem Hauptfenster geöffnet bleiben und wird
 beim Beenden der Anwendung geschlossen. Die Übersicht erläutert die
-Reparierbarkeit; sie führt selbst keine Änderungen an der GEDCOM-Datei aus.
+Reparierbarkeit; Reparaturen werden über die markierten Einträge im
+Hauptfenster angewendet.
+
+### Reparieren und speichern
+
+Markieren Sie die zu reparierenden, als automatisch reparierbar eingestuften
+Probleme und wählen Sie **🛠 Reparieren**. Die Änderungen werden zunächst nur
+auf die Datensätze im Arbeitsspeicher angewendet; die Originaldatei bleibt
+unverändert. **💾 Speichern...** schreibt die geänderten Datensätze in eine
+separate GEDCOM-Datei. Ein Überschreiben der gerade analysierten Quelldatei
+wird verhindert. Vor dem Speichern wird eine Sicherungskopie der geladenen
+Quelldatei unter `<datei>.bak` erstellt; eine vorhandene Sicherung wird
+überschrieben. Mit **↶ Rückgängig** lässt sich jede Reparaturrunde vollständig
+zurücknehmen.
 
 ### Datei öffnen
 
@@ -253,8 +267,6 @@ python -m ged_xrefrepair
 
 ### Geplant
 
-- Reparaturvorschau
-- Selektive Reparatur ausgewählter Probleme
 - Unterstützung weiterer Referenzfehler
 
 Geplante Fehlertypen:

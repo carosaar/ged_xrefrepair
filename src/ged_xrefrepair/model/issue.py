@@ -1,5 +1,14 @@
 # src/ged_xrefrepair/model/issue.py
 from dataclasses import dataclass
+from typing import Literal
+
+
+RepairStatus = Literal[
+    "NOT_PROCESSED",
+    "REPAIRED",
+    "SKIPPED",
+    "FAILED",
+]
 
 
 @dataclass(slots=True)
@@ -15,3 +24,5 @@ class Issue:
     
     # Gibt an, ob der Fehler automatisch behoben werden kann
     auto_repair_possible: bool = False
+
+    repair_status: RepairStatus = "NOT_PROCESSED"
