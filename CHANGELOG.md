@@ -11,9 +11,11 @@ Alle wichtigen Änderungen an diesem Projekt werden in dieser Datei dokumentiert
 - Tatsächlich durchgeführte Reparaturen werden laufweise in
   `<datei>.repair.log` protokolliert. Das Protokoll enthält Version,
   Zeitpunkt, Dateiname sowie die ausgeführten Aktionen und kann über den
-  schreibgeschützten GUI-Button „Protokoll“ eingesehen werden. Undo ändert
-  das Protokoll nicht; Läufe ohne erfolgreiche Reparaturen erzeugen keinen
-  Eintrag.
+  schreibgeschützten GUI-Button „Protokoll“ eingesehen und von dort an einen
+  frei gewählten Speicherort exportiert werden. Undo ändert das Protokoll
+  nicht; Läufe ohne erfolgreiche Reparaturen erzeugen keinen Eintrag. Die
+  Protokolldatei wird erst nach dem Speichern der reparierten GEDCOM-Datei
+  neu aus den noch bestehenden Reparaturläufen aufgebaut.
 
 ---
 ## [0.10.0] Reparatur und Speicherung

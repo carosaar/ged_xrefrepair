@@ -1,5 +1,6 @@
 from datetime import date
 
+from ged_xrefrepair import __version__
 from ged_xrefrepair.model.gedcom_record import GedcomRecord
 from ged_xrefrepair.parser.gedcom_writer import GedcomWriter
 
@@ -76,13 +77,13 @@ def test_writer_adds_repair_history_note_when_head_has_no_note(tmp_path):
     assert lines[:3] == [
         "0 HEAD",
         "1 SOUR Ahnenblatt",
-        "1 NOTE ged_XRefRepair 0.10.0: am 04.11.2026 wurden "
+        f"1 NOTE ged_XRefRepair {__version__}: am 04.11.2026 wurden "
         "17 Zeigerreparaturen durchgeführt",
     ]
     assert records[0].lines == [
         "0 HEAD",
         "1 SOUR Ahnenblatt",
-        "1 NOTE ged_XRefRepair 0.10.0: am 04.11.2026 wurden "
+        f"1 NOTE ged_XRefRepair {__version__}: am 04.11.2026 wurden "
         "17 Zeigerreparaturen durchgeführt",
     ]
     assert records[1].lines == ["0 @I1@ INDI", "1 NAME Max"]
@@ -114,7 +115,7 @@ def test_writer_appends_cont_to_existing_note_block(tmp_path):
         "0 HEAD",
         "1 NOTE Datei aus Altbestand",
         "2 CONT Bearbeitet 2020",
-        "2 CONT ged_XRefRepair 0.10.0: am 05.11.2026 wurden "
+        f"2 CONT ged_XRefRepair {__version__}: am 05.11.2026 wurden "
         "3 Zeigerreparaturen durchgeführt",
         "1 SOUR Ahnenblatt",
     ]
@@ -149,7 +150,7 @@ def test_writer_keeps_multiple_cont_lines_and_appends_new_history_entry(
         "1 NOTE Datei aus Altbestand",
         "2 CONT Bearbeitet 2020",
         "2 CONT Ergänzung",
-        "2 CONT ged_XRefRepair 0.10.0: am 04.11.2026 wurden "
+        f"2 CONT ged_XRefRepair {__version__}: am 04.11.2026 wurden "
         "12 Zeigerreparaturen durchgeführt",
     ]
 
@@ -174,9 +175,9 @@ def test_writer_appends_a_new_note_for_each_save(tmp_path):
 
     assert output.read_text(encoding="utf-8").splitlines() == [
         "0 HEAD",
-        "1 NOTE ged_XRefRepair 0.10.0: am 04.11.2026 wurden "
+        f"1 NOTE ged_XRefRepair {__version__}: am 04.11.2026 wurden "
         "12 Zeigerreparaturen durchgeführt",
-        "2 CONT ged_XRefRepair 0.10.0: am 05.11.2026 wurden "
+        f"2 CONT ged_XRefRepair {__version__}: am 05.11.2026 wurden "
         "3 Zeigerreparaturen durchgeführt",
     ]
 

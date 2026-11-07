@@ -6,6 +6,7 @@ import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QFileDialog, QMessageBox
 
+from ged_xrefrepair import __version__
 from ged_xrefrepair.gui.main_window import MainWindow
 from ged_xrefrepair.model.gedcom_record import GedcomRecord
 from ged_xrefrepair.model.issue import Issue
@@ -358,7 +359,7 @@ def test_save_records_repaired_count_in_head(tmp_path, application, monkeypatch)
 
     saved_lines = output_path.read_text(encoding="utf-8").splitlines()
     assert (
-        "1 NOTE ged_XRefRepair 0.10.0: am "
+        f"1 NOTE ged_XRefRepair {__version__}: am "
         in saved_lines[1]
     )
     assert saved_lines[1].endswith("1 Zeigerreparaturen durchgeführt")
@@ -372,6 +373,7 @@ def test_repair_log_button_opens_read_only_log_window(
     monkeypatch,
 ):
     gedcom_path = tmp_path / "Familie.ged"
+    output_path = tmp_path / "Familie_repaired.ged"
     gedcom_path.write_text("0 HEAD\n", encoding="utf-8")
     window = MainWindow()
     window.gedcom_file = str(gedcom_path)
@@ -402,17 +404,48 @@ def test_repair_log_button_opens_read_only_log_window(
     window.issue_table.item(0, 0).setCheckState(Qt.CheckState.Checked)
     window.apply_selected_repairs()
 
-    log_path = tmp_path / "Familie.ged.repair.log"
-    assert log_path.is_file()
+    log_path = tmp_path / "Familie_repaired.ged.repair.log"
+    assert not log_path.exists()
     assert window.repair_log_button.isEnabled()
     window.repair_log_button.click()
 
     assert window.repair_log_window is not None
-    assert window.repair_log_window.windowTitle() == "Reparaturprotokoll"
+    assert window.repair_log_window.windowTitle() == (
+        "ged_XrefRepair - Reparaturprotokoll"
+    )
     assert window.repair_log_window.text_edit.isReadOnly()
     assert "Eingefügte Zeile: 1 CHIL @I1@" in (
         window.repair_log_window.text_edit.toPlainText()
     )
+    assert not window.repair_log_window.save_button.isEnabled()
+    monkeypatch.setattr(
+        QFileDialog,
+        "getSaveFileName",
+        lambda *args: (str(output_path), "GEDCOM Dateien (*.ged)"),
+    )
+    window.save_repaired_file()
+    assert log_path.is_file()
+    assert window.repair_log_window.save_button.isEnabled()
+
+    saved_log_path = tmp_path / "archiv" / "Familie.repair.log"
+    saved_log_path.parent.mkdir()
+    monkeypatch.setattr(
+        QFileDialog,
+        "getSaveFileName",
+        lambda *args: (str(saved_log_path), "Protokolldateien (*.log)"),
+    )
+    information_messages = []
+    monkeypatch.setattr(
+        QMessageBox,
+        "information",
+        lambda *args: information_messages.append(args[2]),
+    )
+    window.repair_log_window.save_button.click()
+
+    assert saved_log_path.read_text(encoding="utf-8") == log_path.read_text(
+        encoding="utf-8"
+    )
+    assert information_messages
     saved_log = log_path.read_text(encoding="utf-8")
     window.undo_button.click()
     assert log_path.read_text(encoding="utf-8") == saved_log

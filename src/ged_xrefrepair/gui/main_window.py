@@ -1,6 +1,7 @@
 # src/ged_xrefrepair/gui/main_window.py
 
 from copy import deepcopy
+from datetime import datetime
 from html import escape
 from pathlib import Path
 import shutil
@@ -185,10 +186,18 @@ class MainWindow(QMainWindow):
         self._repair_status_history: dict[
             tuple[str, str, str], Issue
         ] = {}
+        self._repair_log_runs: list[RepairLogWriter.Run] = []
         self._repair_ui_undo_stack: list[
-            tuple[dict[tuple[str, str, str], Issue], bool]
+            tuple[
+                dict[tuple[str, str, str], Issue],
+                bool,
+                list[RepairLogWriter.Run],
+                Path | None,
+                bool,
+            ]
         ] = []
         self._repair_log_path: Path | None = None
+        self._repair_log_saved = False
         self.repair_log_window: RepairLogWindow | None = None
         self._analysis_thread: QThread | None = None
         self._analysis_worker: AnalysisWorker | None = None
@@ -727,8 +736,10 @@ class MainWindow(QMainWindow):
             return
 
         self._repair_status_history.clear()
+        self._repair_log_runs.clear()
         self._repair_ui_undo_stack.clear()
         self._repair_log_path = None
+        self._repair_log_saved = False
         self.repair_log_button.setEnabled(False)
         self.gedcom_file = filename
 
@@ -1255,7 +1266,13 @@ class MainWindow(QMainWindow):
             return
 
         self._repair_ui_undo_stack.append(
-            (deepcopy(self._repair_status_history), self._has_unsaved_repairs)
+            (
+                deepcopy(self._repair_status_history),
+                self._has_unsaved_repairs,
+                deepcopy(self._repair_log_runs),
+                self._repair_log_path,
+                self._repair_log_saved,
+            )
         )
         try:
             self.current_records = self.repair_service.apply_selected(
@@ -1273,30 +1290,17 @@ class MainWindow(QMainWindow):
 
         self._remember_repair_statuses(actionable_issues)
         if self.repair_service.last_changed_count and self.gedcom_file:
-            try:
-                self._repair_log_path = RepairLogWriter().append_run(
-                    self.gedcom_file,
-                    actionable_issues,
+            repaired_issues = tuple(
+                deepcopy(issue)
+                for issue in actionable_issues
+                if issue.repair_status == "REPAIRED"
+            )
+            if repaired_issues:
+                self._repair_log_runs.append(
+                    RepairLogWriter.Run(datetime.now(), repaired_issues)
                 )
-                self.repair_log_button.setEnabled(
-                    self._repair_log_path is not None
-                )
-            except OSError as error:
-                existing_log = Path(
-                    f"{self.gedcom_file}.repair.log"
-                )
-                self._repair_log_path = (
-                    existing_log if existing_log.is_file() else None
-                )
-                self.repair_log_button.setEnabled(
-                    self._repair_log_path is not None
-                )
-                QMessageBox.warning(
-                    self,
-                    "Protokoll konnte nicht gespeichert werden",
-                    f"Die Reparaturen wurden durchgeführt, aber das "
-                    f"Protokoll konnte nicht geschrieben werden.\n\n{error}",
-                )
+                self._repair_log_saved = False
+                self.repair_log_button.setEnabled(True)
         if self.repair_service.last_changed_count:
             self._has_unsaved_repairs = True
         self._refresh_analysis_from_current_records()
@@ -1324,6 +1328,9 @@ class MainWindow(QMainWindow):
             (
                 self._repair_status_history,
                 self._has_unsaved_repairs,
+                self._repair_log_runs,
+                self._repair_log_path,
+                self._repair_log_saved,
             ) = self._repair_ui_undo_stack.pop()
         self._refresh_analysis_from_current_records()
         self.statusBar().showMessage("Änderungen rückgängig gemacht")
@@ -1418,8 +1425,35 @@ class MainWindow(QMainWindow):
             )
             return
 
+        try:
+            self._repair_log_path = RepairLogWriter().write(
+                output_path,
+                self._repair_log_runs,
+            )
+            self._repair_log_saved = self._repair_log_path is not None
+        except OSError as error:
+            self._repair_log_saved = False
+            QMessageBox.warning(
+                self,
+                "Protokoll konnte nicht gespeichert werden",
+                "Die reparierte GEDCOM-Datei wurde gespeichert, aber das "
+                f"Reparaturprotokoll konnte nicht geschrieben werden.\n\n{error}",
+            )
+
         self._has_unsaved_repairs = False
         self.save_button.setEnabled(False)
+        self.repair_log_button.setEnabled(bool(self._repair_log_runs))
+        if self.repair_log_window is not None:
+            self.repair_log_window.source_path = output_path
+            self.repair_log_window.save_button.setEnabled(
+                self._repair_log_saved
+            )
+            self.repair_log_window.text_edit.setPlainText(
+                RepairLogWriter().render(
+                    output_path,
+                    self._repair_log_runs,
+                )
+            )
         self.statusBar().showMessage("Datei gespeichert")
         
     def on_issue_item_changed(
@@ -1444,23 +1478,40 @@ class MainWindow(QMainWindow):
 
     def show_repair_log(self) -> None:
         if self._repair_log_path is None:
+            source_path = Path(self.gedcom_file) if self.gedcom_file else None
+        else:
+            source_path = Path(
+                str(self._repair_log_path).removesuffix(".repair.log")
+            )
+        if source_path is None or not self._repair_log_runs:
             return
-
         try:
-            log_content = self._repair_log_path.read_text(encoding="utf-8")
-        except OSError as error:
+            log_content = RepairLogWriter().render(
+                source_path,
+                self._repair_log_runs,
+            )
+        except (OSError, ValueError) as error:
             QMessageBox.warning(
                 self,
-                "Protokoll kann nicht gelesen werden",
-                f"Das Reparaturprotokoll konnte nicht geöffnet werden.\n\n"
+                "Protokoll kann nicht angezeigt werden",
+                f"Das Reparaturprotokoll konnte nicht erstellt werden.\n\n"
                 f"{error}",
             )
             return
 
         if self.repair_log_window is None:
-            self.repair_log_window = RepairLogWindow(self, log_content)
+            self.repair_log_window = RepairLogWindow(
+                self,
+                log_content,
+                source_path,
+                self._repair_log_saved,
+            )
         else:
             self.repair_log_window.text_edit.setPlainText(log_content)
+            self.repair_log_window.source_path = source_path
+            self.repair_log_window.save_button.setEnabled(
+                self._repair_log_saved
+            )
         self.repair_log_window.show()
         self.repair_log_window.raise_()
         self.repair_log_window.activateWindow()
