@@ -44,3 +44,24 @@ def test_missing_famc_detected():
     assert issue.related_xref == "@F1@"
 
     assert issue.auto_repair_possible is True
+
+
+def test_missing_chil_person_is_reported_as_missing_person_only():
+    records = [
+        GedcomRecord(
+            xref="@F1@",
+            tag="FAM",
+            lines=[
+                "0 @F1@ FAM",
+                "1 CHIL @I404@",
+            ],
+        ),
+    ]
+
+    issues = ReferenceAnalyzer().analyze(records)
+
+    assert [issue.issue_type for issue in issues] == ["MISSING_PERSON"]
+    assert issues[0].record_id == "@F1@"
+    assert issues[0].related_xref == "@I404@"
+    assert not issues[0].auto_repair_possible
+    assert "CHIL" in issues[0].description

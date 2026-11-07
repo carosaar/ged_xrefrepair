@@ -9,7 +9,7 @@ from ged_xrefrepair.model.gedcom_record import (
 )
 
 
-def test_missing_famc_not_auto_repairable_if_person_already_has_other_family():
+def test_missing_famc_is_auto_repairable_even_if_person_has_other_famc():
 
     records = [
 
@@ -62,5 +62,5 @@ def test_missing_famc_not_auto_repairable_if_person_already_has_other_family():
 
     assert (
         missing_famc.auto_repair_possible
-        is False
+        is True
     )

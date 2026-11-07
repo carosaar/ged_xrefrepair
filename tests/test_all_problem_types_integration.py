@@ -17,7 +17,6 @@ def test_combined_gedcom_detects_all_problem_types():
         issue.issue_type
         for issue in result.issues
     ) == {
-        "MULTIPLE_FAMC": 1,
         "MISSING_CHIL": 3,
         "MISSING_FAMILY": 2,
         "MISSING_FAMC": 3,
@@ -30,24 +29,22 @@ def test_combined_gedcom_detects_all_problem_types():
     assert result.records == 38
     assert result.individuals == 17
     assert result.families == 19
-    assert result.issues_count == 27
+    assert result.issues_count == 26
 
     assert all(
         not issue.auto_repair_possible
         for issue in result.issues
         if issue.issue_type in {
-            "MULTIPLE_FAMC",
             "MISSING_FAMILY",
             "MISSING_PERSON",
         }
     )
-    assert any(
-        issue.issue_type == "MISSING_CHIL"
-        and not issue.auto_repair_possible
+    assert all(
+        issue.issue_type != "MULTIPLE_FAMC"
         for issue in result.issues
     )
-    assert any(
-        issue.issue_type == "MISSING_FAMC"
-        and not issue.auto_repair_possible
+    assert all(
+        issue.auto_repair_possible
         for issue in result.issues
+        if issue.issue_type in {"MISSING_CHIL", "MISSING_FAMC"}
     )

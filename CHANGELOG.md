@@ -4,8 +4,36 @@ Alle wichtigen Änderungen an diesem Projekt werden in dieser Datei dokumentiert
 
 ---
 
+## [0.8.0] Optimierungen und Logik-Änderungen
+
+### FAMC-Auswertung
+
+- `MISSING_CHIL` und `MISSING_FAMC` gleichen die Gegenverweise unabhängig von
+  PEDI-Untertags und weiteren Familienzuordnungen ab; fehlende Gegenverweise
+  gelten als automatisch lösbar.
+- CHIL-Verweise auf nicht vorhandene INDI-Datensätze werden als
+  `MISSING_PERSON` gemeldet. Für FAMC-/FAMS-Verweise auf nicht vorhandene
+  Familien bleibt `MISSING_FAMILY` zuständig; beide Problemtypen sind nicht
+  automatisch lösbar.
+- Mehrere FAMC-Verweise werden nicht mehr als `MULTIPLE_FAMC`-Problem gemeldet.
+  PEDI-Klassifikationen wie BIRTH, ADOPTED und FOSTER lösen diesen Befund
+  nicht aus; andere FAMC-/CHIL-Referenzprüfungen bleiben aktiv.
+
+### Problemliste und Hilfe
+
+- Die Hilfeübersicht erläutert die erkannten Problemtypen und ihre
+  Reparierbarkeit in einem separaten, modeless Fenster.
+- Die Problemliste kann nach Problemtyp und Reparierbarkeit gefiltert werden;
+  beide Filter lassen sich kombinieren.
+- Die Auswahlaktionen wirken nur auf sichtbare, gefilterte Einträge.
+  Neue Analyseergebnisse werden zunächst ohne ausgewählte Einträge angezeigt.
+- Tabellenzeilen und Mindesthöhe des Hilfe-Fensters wurden kompakter
+  gestaltet.
+
+
 ## [0.7.0] - Reaktionsfähige Analyse
 06.11.2026
+
 
 ### Analyse im Hintergrund
 

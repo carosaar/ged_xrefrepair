@@ -45,11 +45,14 @@ Vorhanden:
 INDI.FAMC -> FAM
 ```
 
+PEDI-Untertags beeinflussen diesen Abgleich nicht. Ein FAMC-Verweis auf die
+konkrete Familie wird unabhängig davon geprüft, ob ein PEDI-Untertag fehlt,
+leer ist oder beispielsweise `BIRTH`, `ADOPTED` oder `FOSTER` enthält.
+
 Der referenzierte Familiendatensatz existiert.
 
-Der passende CHIL-Eintrag fehlt 
-und es gibt insgesamt keinen entsprechenden CHIL-Eintrag in einem anderen Familiendatensatz.
-**Anmerkung zur Logikvereinfachung**: Ein Kind darf nur einer Elternfamilie zugeordnet sein.
+Der passende CHIL-Eintrag fehlt. CHIL-Einträge in anderen Familiendatensätzen
+beeinflussen diesen Befund nicht.
 
 
 ## 1.3. Automatische Reparatur möglich
@@ -57,20 +60,17 @@ und es gibt insgesamt keinen entsprechenden CHIL-Eintrag in einem anderen Famili
 JA, wenn:
 
 - der referenzierte FAM-Datensatz existiert UND
-- kein passender CHIL-Eintrag vorhanden ist UND
-- das Kind nicht bereits als CHIL in einem anderen FAM-Datensatz eingetragen ist
+- kein passender CHIL-Eintrag in genau dieser Familie vorhanden ist
 
 ## 1.4. Automatische Reparatur nicht möglich
 
 NEIN, wenn:
 
-- der FAM-Datensatz fehlt ODER
-- das Kind bereits als CHIL in einer anderen Familie vorkommt ODER
-- die Beziehung dadurch mehrdeutig wird
+- der FAM-Datensatz fehlt; dieser Fall wird als `MISSING_FAMILY` gemeldet
 
 ---
 
-## 1.5.Reparaturaktion
+## 1.5. Reparaturaktion
 
 Einfügen in den Familiendatensatz:
 
@@ -85,6 +85,11 @@ Einfügen in den Familiendatensatz:
 ## 2.1. Beschreibung
 
 Eine Familie enthält einen CHIL-Eintrag, die Person besitzt jedoch keinen passenden FAMC-Eintrag.
+
+PEDI-Untertags und FAMC-Verweise auf andere Familien beeinflussen den Abgleich
+nicht. Als vorhandener Gegenverweis zählt ein FAMC auf genau die CHIL-Familie,
+unabhängig davon, ob ein PEDI-Untertag fehlt, leer ist oder beispielsweise
+`BIRTH`, `ADOPTED` oder `FOSTER` enthält.
 
 Beispiel:
 
@@ -123,16 +128,14 @@ Der referenzierte Personendatensatz existiert.
 JA, wenn:
 
 - der INDI-Datensatz existiert UND
-- kein passender FAMC-Eintrag vorhanden ist UND
-- kein anderer FAMC-Eintrag im Personendatensatz existiert
+- kein FAMC-Eintrag auf genau diese Familie vorhanden ist
 
 
 ## 2.4. Automatische Reparatur nicht möglich
 
 NEIN, wenn:
 
-- der Personendatensatz fehlt ODER
-- bereits ein anderer FAMC-Eintrag vorhanden ist wodurch mehrdeutige Elternbeziehungen entstehen würden
+- der Personendatensatz fehlt; dieser Fall wird als `MISSING_PERSON` gemeldet
 
 ## 2.5. Reparaturaktion
 
@@ -402,43 +405,25 @@ Einfügen in den Personendatensatz:
 
 ## 6.1. Beschreibung
 
-Ein HUSB- oder WIFE-Eintrag in einem Familiendatensatz verweist auf eine
-Person, für die kein INDI-Datensatz existiert.
+Ein HUSB-, WIFE- oder CHIL-Eintrag in einem Familiendatensatz verweist auf
+eine Person, für die kein INDI-Datensatz existiert.
 
 Der Befund wird als `MISSING_PERSON` gemeldet. Er wird nicht als fehlender
-FAMS-Rückverweis klassifiziert, da eine nicht vorhandene Person keinen
-FAMS-Eintrag enthalten kann.
+FAMS- oder FAMC-Rückverweis klassifiziert, da eine nicht vorhandene Person
+keinen INDI-Datensatz mit einem solchen Eintrag enthalten kann.
 
 ---
 
-# 7. MULTIPLE_FAMC
+# 7. Mehrere FAMC-Verweise
 
-## 7.1. Beschreibung
+Mehrere FAMC-Verweise werden nicht als eigener Problemfall (`MULTIPLE_FAMC`)
+gemeldet. Die Anwendung bewertet nicht, ob die FAMC-Verweise unterschiedliche
+Abstammungs-, Adoptiv- oder Pflegebeziehungen beschreiben. Insbesondere werden
+`PEDI`-Werte wie `ADOPTED` und `FOSTER` nicht für einen
+`MULTIPLE_FAMC`-Befund ausgewertet.
 
-Eine Person hat mehrere Abstammungszuordnungen über `FAMC`. Als Abstammungszuordnung
-zählen nur FAMC-Verweise ohne `PEDI`-Untertag oder mit leerem `PEDI`-Wert bzw.
-`PEDI BIRTH`.
-
-FAMC-Verweise mit anderen `PEDI`-Werten, zum Beispiel `ADOPTED` oder `FOSTER`,
-werden für diese Regel nicht als Abstammungszuordnung gezählt.
-
-## 7.2. Erkennung
-
-`MULTIPLE_FAMC` wird nur gemeldet, wenn mindestens zwei unterschiedliche
-Abstammungsfamilien auf diese Weise zugeordnet sind. Die Regel nimmt keine
-automatische Änderung vor; mögliche Zuordnungen müssen fachlich geprüft werden.
-
-Beispiel:
-
-```gedcom
-0 @I1@ INDI
-1 FAMC @F1@
-1 FAMC @F2@
-2 PEDI ADOPTED
-```
-
-In diesem Beispiel zählt nur `@F1@` als Abstammungsfamilie; `@F2@` ist durch
-`PEDI ADOPTED` gekennzeichnet.
+Andere Referenzprüfungen, etwa auf fehlende oder widersprüchliche FAMC-/CHIL-
+Verweise, bleiben davon unberührt.
 
 ---
 
@@ -472,15 +457,20 @@ In diesen Fällen darf GED XRef Repair lediglich einen Vorschlag anzeigen und mu
 
 | Problemtyp | Beschreibung | Automatisch reparierbar | Voraussetzung |
 |------------|-------------|-------------------------|---------------|
-| MISSING_CHIL | FAMC vorhanden, CHIL fehlt | ✅ Ja | Familie existiert, kein CHIL vorhanden, keine konkurrierende Familie |
-| MISSING_FAMC | CHIL vorhanden, FAMC fehlt | ✅ Ja | Person existiert, kein anderer FAMC-Eintrag vorhanden |
+| MISSING_CHIL | FAMC vorhanden, passender CHIL fehlt | ✅ Ja | Person und referenzierte Familie existieren |
+| MISSING_FAMC | CHIL vorhanden, passender FAMC fehlt | ✅ Ja | Familie und referenzierte Person existieren |
 | MISSING_HUSB | FAMS vorhanden, HUSB fehlt | ✅ Ja | Familie existiert, genau ein Kandidat mit SEX=M, kein HUSB vorhanden |
 | MISSING_WIFE | FAMS vorhanden, WIFE fehlt | ✅ Ja | Familie existiert, genau ein Kandidat mit SEX=F, kein WIFE vorhanden |
 | MISSING_FAMS_HUSB | HUSB vorhanden, FAMS fehlt | ✅ Ja | Person existiert, SEX=M |
 | MISSING_FAMS_WIFE | WIFE vorhanden, FAMS fehlt | ✅ Ja | Person existiert, SEX=F |
-| MISSING_PERSON | Verweis auf nicht vorhandene Person | ❌ Nein | Zielperson fehlt |
+| MISSING_PERSON | HUSB-/WIFE-/CHIL-Verweis auf nicht vorhandene Person | ❌ Nein | Zielperson fehlt |
 | MISSING_FAMILY | Verweis auf nicht vorhandene Familie | ❌ Nein | Zielfamilie fehlt |
-| MULTIPLE_FAMC | Mehrere Abstammungsfamilien (FAMC ohne PEDI oder PEDI leer/BIRTH) | ❌ Nein | Mindestens zwei unterschiedliche Abstammungsfamilien |
-| MULTIPLE_HUSB | Mehrere mögliche Ehemänner | ❌ Nein | Fachliche Entscheidung erforderlich |
-| MULTIPLE_WIFE | Mehrere mögliche Ehefrauen | ❌ Nein | Fachliche Entscheidung erforderlich |
-| UNKNOWN_SEX | Geschlecht fehlt oder unbekannt | ❌ Nein | Rolle nicht eindeutig bestimmbar |
+
+Fehlendes oder widersprüchliches Geschlecht sowie mehrere mögliche HUSB- oder
+WIFE-Kandidaten werden als nicht automatisch reparierbare `MISSING_HUSB`- bzw.
+`MISSING_WIFE`-Befunde angezeigt; dafür gibt es keine separaten Problemtypen.
+
+Die Einstufung „automatisch reparierbar“ beschreibt, ob die fehlende Referenz
+aus Sicht der Analyse eindeutig ergänzt werden könnte. Sie bedeutet nicht, dass
+die Anwendung die GEDCOM-Datei bereits automatisch ändert. Prüfen Sie alle
+Befunde anhand Ihrer Quelldaten.

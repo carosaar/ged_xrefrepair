@@ -22,10 +22,6 @@ class MissingFamcRule:
         if family_xref in existing:
             return []
 
-        auto_repair = (
-            len(existing) == 0
-        )
-
         return [
             Issue(
                 issue_type="MISSING_FAMC",
@@ -40,7 +36,6 @@ class MissingFamcRule:
                     f"aber FAMC fehlt."
                 ),
 
-                auto_repair_possible=
-                    auto_repair,
+                auto_repair_possible=True,
             )
         ]

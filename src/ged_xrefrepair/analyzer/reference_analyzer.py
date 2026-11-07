@@ -18,10 +18,6 @@ from ged_xrefrepair.analyzer.rules.missing_famc import (
     MissingFamcRule
 )
 
-from ged_xrefrepair.analyzer.rules.multiple_famc import (
-    MultipleFamcRule
-)
-
 from ged_xrefrepair.analyzer.rules.missing_husb import (
     MissingHusbRule
 )
@@ -48,10 +44,6 @@ class ReferenceAnalyzer:
 
     famc_pattern = re.compile(
         r"1 FAMC (@[^@]+@)"
-    )
-
-    pedi_pattern = re.compile(
-        r"2 PEDI(?:\s+(.*))?$"
     )
 
     fams_pattern = re.compile(
@@ -97,10 +89,6 @@ class ReferenceAnalyzer:
             MissingFamcRule()
         )
 
-        multiple_famc_rule = (
-            MultipleFamcRule()
-        )
-
         missing_husb_rule = (
             MissingHusbRule()
         )
@@ -119,11 +107,7 @@ class ReferenceAnalyzer:
 
         families = {}
 
-        child_families = {}
-
         person_families = {}
-
-        birth_person_families = {}
 
         family_husb = {}
 
@@ -166,13 +150,6 @@ class ReferenceAnalyzer:
 
                         children.add(
                             child_xref
-                        )
-
-                        child_families.setdefault(
-                            child_xref,
-                            set()
-                        ).add(
-                            record.xref
                         )
 
                     husb_match = (
@@ -265,14 +242,6 @@ class ReferenceAnalyzer:
 
                         sex = sex_match.group(1)
 
-                birth_famc_refs = self._birth_famc_refs(
-                    record.lines
-                )
-                if birth_famc_refs:
-                    birth_person_families[
-                        record.xref
-                    ] = birth_famc_refs
-
                 if sex:
 
                     sex_map[
@@ -280,25 +249,11 @@ class ReferenceAnalyzer:
                     ] = sex
 
         #
-        # MULTIPLE_FAMC
-        #
-
-        for (
-            person_xref,
-            families_set
-        ) in birth_person_families.items():
-
-            issues.extend(
-                multiple_famc_rule.analyze(
-                    person_xref,
-                    families_set,
-                )
-            )
-
-        #
         # MISSING_FAMILY
         # MISSING_CHIL
         #
+
+        checked_child_relations = set()
 
         for record in records:
 
@@ -320,6 +275,11 @@ class ReferenceAnalyzer:
                     match.group(1)
                 )
 
+                relation = (record.xref, family_xref)
+                if relation in checked_child_relations:
+                    continue
+                checked_child_relations.add(relation)
+
                 issues.extend(
                     missing_family_rule.analyze(
                         record,
@@ -336,13 +296,14 @@ class ReferenceAnalyzer:
                         record,
                         family_xref,
                         families,
-                        child_families,
                     )
                 )
 
         #
         # MISSING_FAMC
         #
+
+        checked_child_relations = set()
 
         for record in records:
 
@@ -363,6 +324,22 @@ class ReferenceAnalyzer:
                 child_xref = (
                     match.group(1)
                 )
+
+                relation = (record.xref, child_xref)
+                if relation in checked_child_relations:
+                    continue
+                checked_child_relations.add(relation)
+
+                if child_xref not in person_xrefs:
+                    issues.extend(
+                        missing_person_rule.analyze(
+                            record.xref,
+                            child_xref,
+                            "CHIL",
+                            person_xrefs,
+                        )
+                    )
+                    continue
 
                 issues.extend(
                     missing_famc_rule.analyze(
@@ -540,45 +517,3 @@ class ReferenceAnalyzer:
 
 
         return issues
-
-    def _birth_famc_refs(
-        self,
-        lines: list[str],
-    ) -> set[str]:
-        birth_famc_refs = set()
-        line_index = 0
-
-        while line_index < len(lines):
-            famc_match = self.famc_pattern.match(
-                lines[line_index]
-            )
-            if not famc_match:
-                line_index += 1
-                continue
-
-            family_xref = famc_match.group(1)
-            pedi_values = []
-            line_index += 1
-
-            while (
-                line_index < len(lines)
-                and not lines[line_index].startswith(("0 ", "1 "))
-            ):
-                pedi_match = self.pedi_pattern.match(
-                    lines[line_index]
-                )
-                if pedi_match:
-                    pedi_values.append(
-                        (pedi_match.group(1) or "").strip()
-                    )
-                line_index += 1
-
-            if not pedi_values or any(
-                not pedi_value
-                or pedi_value.upper() == "BIRTH"
-                for pedi_value in pedi_values
-            ):
-                birth_famc_refs.add(family_xref)
-
-        return birth_famc_refs
-    

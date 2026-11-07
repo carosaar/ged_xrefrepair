@@ -7,7 +7,7 @@ from ged_xrefrepair.model.gedcom_record import (
 )
 
 
-def test_missing_chil_not_auto_repairable_if_child_exists_in_other_family():
+def test_missing_chil_is_auto_repairable_if_child_exists_in_other_family():
 
     records = [
 
@@ -43,8 +43,7 @@ def test_missing_chil_not_auto_repairable_if_child_exists_in_other_family():
     issues = analyzer.analyze(records)
 
     #
-    # Es müssen nun zwei Issues entstehen:
-    # MISSING_CHIL und MISSING_FAMC
+    # Beide fehlenden Gegenverweise werden unabhängig voneinander gemeldet.
     #
 
     assert len(issues) == 2
@@ -71,7 +70,7 @@ def test_missing_chil_not_auto_repairable_if_child_exists_in_other_family():
 
     assert (
         missing_chil.auto_repair_possible
-        is False
+        is True
     )
 
     #
@@ -84,5 +83,5 @@ def test_missing_chil_not_auto_repairable_if_child_exists_in_other_family():
 
     assert (
         missing_famc.auto_repair_possible
-        is False
+        is True
     )

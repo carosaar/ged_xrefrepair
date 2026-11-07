@@ -29,9 +29,13 @@ from PySide6.QtWidgets import (
     QHeaderView,
     QTextEdit,
     QAbstractItemView,
+    QComboBox,
 )
 
 from ged_xrefrepair.gui.analysis_worker import AnalysisWorker
+from ged_xrefrepair.gui.problem_overview_window import (
+    ProblemOverviewWindow,
+)
 from ged_xrefrepair.services.name_resolver import NameResolver
 from ged_xrefrepair.analyzer.analysis_result import AnalysisResult
 from ged_xrefrepair.services.repair_preview_service import (
@@ -58,8 +62,9 @@ class MainWindow(QMainWindow):
         self._analysis_thread_done = False
         self._analysis_display_done = False
         self._analysis_final_message = ""
+        self.problem_overview_window: ProblemOverviewWindow | None = None
         
-        self.setWindowTitle("GED XRef Repair v.0.7.0")
+        self.setWindowTitle("GED XRef Repair v.0.8.0")
         self.resize(1400, 900)
 
         self._create_ui()
@@ -104,6 +109,7 @@ class MainWindow(QMainWindow):
         self.analyze_button = QPushButton("🔍 Analysieren")
         self.repair_button = QPushButton("🛠 Reparieren")
         self.save_button = QPushButton("💾 Speichern...")
+        self.help_button = QPushButton("❓ HILFE")
         self.info_button = QPushButton("ℹ Info")
         self.exit_button = QPushButton("❌ Ende")
 
@@ -112,6 +118,7 @@ class MainWindow(QMainWindow):
             self.analyze_button,
             self.repair_button,
             self.save_button,
+            self.help_button,
             self.info_button,
             self.exit_button,
         ):
@@ -128,6 +135,7 @@ class MainWindow(QMainWindow):
 
         button_layout.addStretch()
 
+        button_layout.addWidget(self.help_button)
         button_layout.addWidget(self.info_button)
         button_layout.addWidget(self.exit_button)
 
@@ -288,6 +296,13 @@ class MainWindow(QMainWindow):
 
         problem_layout = QVBoxLayout()
 
+        self.issue_type_filter = QComboBox()
+        self.issue_type_filter.addItem("Alle Typen", None)
+        self.repairability_filter = QComboBox()
+        self.repairability_filter.addItem("Alle", None)
+        self.repairability_filter.addItem("Reparierbar", True)
+        self.repairability_filter.addItem("Nicht reparierbar", False)
+
         self.issue_table = QTableWidget()
 
         self.issue_table.setColumnCount(5)
@@ -380,11 +395,15 @@ class MainWindow(QMainWindow):
             self.invert_selection_button
         )
 
-        selection_layout.addStretch()
-
         selection_layout.addWidget(
             self.selected_count_label
         )
+
+        selection_layout.addStretch()
+        selection_layout.addWidget(QLabel("Typ:"))
+        selection_layout.addWidget(self.issue_type_filter)
+        selection_layout.addWidget(QLabel("Reparierbarkeit:"))
+        selection_layout.addWidget(self.repairability_filter)
 
         problem_layout.addLayout(
             selection_layout
@@ -458,6 +477,10 @@ class MainWindow(QMainWindow):
             self.show_info
         )
 
+        self.help_button.clicked.connect(
+            self.show_problem_overview
+        )
+
         # Wenn der "Ende"-Button geklickt wird, soll das Programm beendet werden
         self.exit_button.clicked.connect(
             self.close
@@ -490,6 +513,13 @@ class MainWindow(QMainWindow):
         # Wenn die Auswahl in der Tabelle geändert wird, sollen die Details angezeigt werden
         self.issue_table.itemSelectionChanged.connect(
             self.show_issue_details
+        )
+
+        self.issue_type_filter.currentIndexChanged.connect(
+            self.apply_issue_filters
+        )
+        self.repairability_filter.currentIndexChanged.connect(
+            self.apply_issue_filters
         )
 
     def select_file(self) -> None:
@@ -696,6 +726,9 @@ class MainWindow(QMainWindow):
             event.ignore()
             return
 
+        if self.problem_overview_window is not None:
+            self.problem_overview_window.close()
+
         event.accept()
 
     def _clear_analysis_results(self) -> None:
@@ -708,6 +741,9 @@ class MainWindow(QMainWindow):
         self.issues_value.setText("-")
 
         self.issue_table.setRowCount(0)
+        self.issue_type_filter.clear()
+        self.issue_type_filter.addItem("Alle Typen", None)
+        self.repairability_filter.setCurrentIndex(0)
         self.detail_view.clear()
         self.selected_count_label.setText("Ausgewählt: 0")
 
@@ -721,6 +757,15 @@ class MainWindow(QMainWindow):
         self._start_issue_table_population(issues)
 
     def _start_issue_table_population(self, issues) -> None:
+        issue_types = sorted({issue.issue_type for issue in issues})
+        self.issue_type_filter.blockSignals(True)
+        self.issue_type_filter.clear()
+        self.issue_type_filter.addItem("Alle Typen", None)
+        for issue_type in issue_types:
+            self.issue_type_filter.addItem(issue_type, issue_type)
+        self.issue_type_filter.blockSignals(False)
+        self.repairability_filter.setCurrentIndex(0)
+
         self.issue_table.setSortingEnabled(False)
         self.issue_table.setRowCount(len(issues))
         for row, issue in enumerate(issues):
@@ -733,11 +778,7 @@ class MainWindow(QMainWindow):
                 checkbox_item.flags()
                 | Qt.ItemFlag.ItemIsUserCheckable
             )
-            checkbox_item.setCheckState(
-                Qt.CheckState.Checked
-                if issue.auto_repair_possible
-                else Qt.CheckState.Unchecked
-            )
+            checkbox_item.setCheckState(Qt.CheckState.Unchecked)
             self.issue_table.setItem(
                 row,
                 0,
@@ -767,6 +808,7 @@ class MainWindow(QMainWindow):
             )
 
         self.update_selected_count()
+        self.apply_issue_filters()
         self.detail_view.clear()
         self.issue_table.setSortingEnabled(True)
         self._analysis_display_done = True
@@ -777,6 +819,9 @@ class MainWindow(QMainWindow):
         for row in range(
             self.issue_table.rowCount()
         ):
+
+            if self.issue_table.isRowHidden(row):
+                continue
 
             item = self.issue_table.item(
                 row,
@@ -796,6 +841,9 @@ class MainWindow(QMainWindow):
         for row in range(
             self.issue_table.rowCount()
         ):
+
+            if self.issue_table.isRowHidden(row):
+                continue
 
             item = self.issue_table.item(
                 row,
@@ -817,6 +865,9 @@ class MainWindow(QMainWindow):
         for row in range(
             self.issue_table.rowCount()
         ):
+
+            if self.issue_table.isRowHidden(row):
+                continue
 
             item = self.issue_table.item(
                 row,
@@ -844,6 +895,37 @@ class MainWindow(QMainWindow):
         self.issue_table.blockSignals(False)
 
         self.update_selected_count()
+
+    def apply_issue_filters(self, *args) -> None:
+        selected_type = self.issue_type_filter.currentData()
+        selected_repairability = self.repairability_filter.currentData()
+
+        for row in range(self.issue_table.rowCount()):
+            item = self.issue_table.item(row, 0)
+            issue = (
+                item.data(Qt.ItemDataRole.UserRole)
+                if item is not None
+                else None
+            )
+            matches_type = (
+                selected_type is None
+                or (
+                    issue is not None
+                    and issue.issue_type == selected_type
+                )
+            )
+            matches_repairability = (
+                selected_repairability is None
+                or (
+                    issue is not None
+                    and issue.auto_repair_possible
+                    is selected_repairability
+                )
+            )
+            self.issue_table.setRowHidden(
+                row,
+                not (matches_type and matches_repairability),
+            )
     
             
     def update_selected_count(self) -> None:
@@ -889,6 +971,16 @@ class MainWindow(QMainWindow):
                 "von GEDCOM-Referenzen."
             )
         )
+
+    def show_problem_overview(self) -> None:
+        if self.problem_overview_window is None:
+            self.problem_overview_window = ProblemOverviewWindow(
+                self
+            )
+
+        self.problem_overview_window.show()
+        self.problem_overview_window.raise_()
+        self.problem_overview_window.activateWindow()
         
         # Wenn ein Problem in der Tabelle ausgewählt wird, sollen die Details angezeigt werden
     def show_issue_details(

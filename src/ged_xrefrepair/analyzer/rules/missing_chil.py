@@ -8,24 +8,10 @@ class MissingChilRule:
         record,
         family_xref,
         families,
-        child_families,
     ) -> list[Issue]:
 
         if record.xref in families[family_xref]:
             return []
-
-        auto_repair = True
-
-        other_families = (
-            child_families.get(
-                record.xref,
-                set()
-            )
-            - {family_xref}
-        )
-
-        if other_families:
-            auto_repair = False
 
         return [
             Issue(
@@ -41,6 +27,6 @@ class MissingChilRule:
                     f"aber CHIL fehlt."
                 ),
 
-                auto_repair_possible=auto_repair,
+                auto_repair_possible=True,
             )
         ]

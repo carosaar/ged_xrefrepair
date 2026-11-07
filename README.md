@@ -19,13 +19,18 @@ Derzeit erkennt die Anwendung folgende Referenzprobleme:
 - `MISSING_FAMILY` – FAMC-/FAMS-Verweis auf eine nicht vorhandene Familie
 - `MISSING_HUSB` / `MISSING_WIFE` – FAMS-Verweis auf eine Familie ohne passende Partnerrolle
 - `MISSING_FAMS_HUSB` / `MISSING_FAMS_WIFE` – HUSB-/WIFE-Eintrag ohne passenden FAMS-Verweis
-- `MISSING_PERSON` – HUSB-/WIFE-Verweis auf eine nicht vorhandene Person
-- `MULTIPLE_FAMC` – mehrere Abstammungsfamilien für eine Person
+- `MISSING_PERSON` – HUSB-/WIFE-/CHIL-Verweis auf eine nicht vorhandene Person
 
-Ein HUSB-/WIFE-Verweis auf eine nicht vorhandene Person wird als
-`MISSING_PERSON` gemeldet, nicht als fehlender FAMS-Rückverweis. Verweist
-`FAMS` auf eine nicht vorhandene Familie, wird `MISSING_FAMILY` gemeldet und
-keine fehlende HUSB-/WIFE-Rolle abgeleitet.
+Ein HUSB-/WIFE-/CHIL-Verweis auf eine nicht vorhandene Person wird als
+`MISSING_PERSON` gemeldet, nicht als fehlender FAMS-/FAMC-Rückverweis.
+Verweist `FAMS` oder `FAMC` auf eine nicht vorhandene Familie, wird
+`MISSING_FAMILY` gemeldet und kein fehlender Gegenverweis abgeleitet.
+
+`MISSING_CHIL` und `MISSING_FAMC` gleichen die FAMC- und CHIL-Verweise
+familienbezogen ab, unabhängig von PEDI-Untertags und weiteren
+Familienzuordnungen. Fehlt der referenzierte FAM- oder INDI-Datensatz, wird
+stattdessen der nicht automatisch lösbare Problemtyp `MISSING_FAMILY`
+beziehungsweise `MISSING_PERSON` gemeldet.
 
 Wenn mehrere Personen mit passendem SEX über `FAMS` auf dieselbe Familie ohne
 HUSB beziehungsweise WIFE verweisen, bleiben die einzelnen Kandidaten in der
@@ -33,25 +38,10 @@ Problemliste sichtbar. Ihre Zuordnung gilt als mehrdeutig und wird nicht zur
 automatischen Reparatur vorgeschlagen. Eine automatische Zuordnung setzt einen
 einzigen passenden Kandidaten voraus.
 
-`MULTIPLE_FAMC` berücksichtigt nur FAMC-Verweise ohne `PEDI`-Untertag oder
-mit leerem `PEDI`-Wert beziehungsweise `PEDI BIRTH`. Verweise mit anderen
-PEDI-Werten, zum Beispiel `ADOPTED` oder `FOSTER`, zählen nicht als
-Abstammungszuordnung. Ein Hinweis wird ausgegeben, wenn mindestens zwei
-unterschiedliche Abstammungsfamilien vorliegen. Daraus wird keine automatische
-Reparatur abgeleitet.
-
-Beispiel für einen FAMC-Verweis, der wegen `PEDI ADOPTED` nicht als
-Abstammungszuordnung gezählt wird:
-
-```gedcom
-0 @I1@ INDI
-1 FAMC @F1@
-1 FAMC @F2@
-2 PEDI ADOPTED
-```
-
-Hier zählt `@F1@` als Abstammungsfamilie; `@F2@` ist durch `PEDI ADOPTED`
-gekennzeichnet und wird von `MULTIPLE_FAMC` nicht mitgezählt.
+Mehrere `FAMC`-Verweise werden nicht als eigener Problemfall gemeldet. Die
+PEDI-Klassifikation (z. B. Abstammung, `ADOPTED` oder `FOSTER`) wird nicht zur
+Erzeugung eines `MULTIPLE_FAMC`-Befunds verwendet. Andere Prüfungen auf
+fehlende oder widersprüchliche FAMC-/CHIL-Referenzen bleiben davon unberührt.
 
 ---
 
@@ -69,9 +59,13 @@ Für jedes Problem werden angezeigt:
 Funktionen:
 
 - Sortierung über Spaltenüberschriften
+- Filter nach Problemtyp und Reparierbarkeit; beide Filter können kombiniert werden
 - Alle auswählen
 - Keine auswählen
 - Auswahl umkehren
+
+Die Auswahlaktionen wirken nur auf die aktuell gefilterten und sichtbaren
+Probleme. Ausgeblendete Probleme behalten ihren Auswahlstatus.
 
 ---
 
@@ -153,6 +147,14 @@ Beispiele:
 ---
 
 ## Bedienung
+
+### Problemübersicht
+
+Über **❓ HILFE** wird ein eigenständiges, nicht-modales Fenster mit den
+erkannten Problemtypen und ihren Bedingungen für eine eindeutige Lösung
+geöffnet. Das Fenster kann neben dem Hauptfenster geöffnet bleiben und wird
+beim Beenden der Anwendung geschlossen. Die Übersicht erläutert die
+Reparierbarkeit; sie führt selbst keine Änderungen an der GEDCOM-Datei aus.
 
 ### Datei öffnen
 
